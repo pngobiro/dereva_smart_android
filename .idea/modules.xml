@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/Dereva Smart.iml" filepath="$PROJECT_DIR$/.idea/Dereva Smart.iml" />
+      <module fileurl="file://$PROJECT_DIR$/dereva_smart_learner/android/android.iml" filepath="$PROJECT_DIR$/dereva_smart_learner/android/android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/dereva_smart_learner/linux/flutter/ephemeral/.plugin_symlinks/connectivity_plus/android/android2.iml" filepath="$PROJECT_DIR$/dereva_smart_learner/linux/flutter/ephemeral/.plugin_symlinks/connectivity_plus/android/android2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/dereva_smart_learner/linux/flutter/ephemeral/.plugin_symlinks/connectivity_plus/example/example.iml" filepath="$PROJECT_DIR$/dereva_smart_learner/linux/flutter/ephemeral/.plugin_symlinks/connectivity_plus/example/example.iml" />
+    </modules>
+  </component>
+</project>

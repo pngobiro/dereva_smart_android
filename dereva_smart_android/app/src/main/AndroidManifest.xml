@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    
+    <application
+        android:name=".DerevaApplication"
+        android:allowBackup="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="Dereva Smart"
+        tools:replace="android:label"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DereSmart"
+        android:usesCleartextTraffic="false">
+        
+        <!-- M-Pesa Payment Configuration -->
+        <meta-data 
+            android:name="com.birosoft.payments.SERVER_URL_API" 
+            android:value="https://dereva-smart-backend.pngobiro.workers.dev/api"/>
+        <meta-data 
+            android:name="com.birosoft.payments.CALLBACK_URL" 
+            android:value="https://dereva-smart-backend.pngobiro.workers.dev/api/payments/callback"/>
+        <meta-data 
+            android:name="com.birosoft.payments.PRODUCT_CODE" 
+            android:value="9999"/>
+        <meta-data 
+            android:name="com.birosoft.payments.MPESA_PASSKEY" 
+            android:value="f94ecc4674aa8e226cacd184c48295f2dd648437220fed565af93680bef7fb2f"/>
+        <meta-data 
+            android:name="com.birosoft.payments.MPESA_CONSUMER_KEY" 
+            android:value="FUkERaDvg1tJtT6k2ngpyapbkPwJHKea"/>
+        <meta-data 
+            android:name="com.birosoft.payments.MPESA_CONSUMER_SECRET" 
+            android:value="QNWTc8eUtn5kTjbD"/>
+        <meta-data 
+            android:name="com.birosoft.payments.MPESA_SHORT_CODE" 
+            android:value="755106"/>
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DereSmart">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.payment.MpesaPaymentActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false" />
+            
+    </application>
+</manifest>
