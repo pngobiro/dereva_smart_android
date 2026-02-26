@@ -107,9 +107,8 @@ fun QuizListScreen(
                             QuizBankCard(
                                 quiz = quiz,
                                 onClick = {
-                                    // TODO: Navigate to quiz screen
-                                    val token = authState.token
-                                    viewModel.startQuiz(quiz.id, token)
+                                    // Start quiz with auth token if available
+                                    viewModel.startQuiz(quiz.id, authViewModel, authState.currentUser)
                                 }
                             )
                         }

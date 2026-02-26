@@ -2,6 +2,7 @@ package com.dereva.smart.domain.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.RawValue
 
 @Parcelize
 data class QuizBank(
@@ -143,11 +144,12 @@ data class QuizFeedback(
     val userAnswer: String? = null
 ) : Parcelable
 
-@Parcelize
+// QuizAnswer is not Parcelable because it contains Any? type
+// It's only used for API communication, not for passing between screens
 data class QuizAnswer(
     val questionId: String,
     val answer: Any? // Can be String, Boolean, List<String>, etc.
-) : Parcelable
+)
 
 @Parcelize
 data class QuizAttemptHistory(

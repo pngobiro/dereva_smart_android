@@ -314,4 +314,8 @@ class AuthViewModel(
         return authRepository.validatePhoneNumber(phoneNumber)
             .exceptionOrNull()?.message
     }
+    
+    suspend fun getAuthToken(): String? {
+        return authRepository.getAuthState().token
+    }
 }

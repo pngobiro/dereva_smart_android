@@ -56,9 +56,16 @@ class QuizViewModel(
         }
     }
     
-    fun startQuiz(quizId: String, token: String? = null) {
+    fun startQuiz(quizId: String, authViewModel: com.dereva.smart.ui.screens.auth.AuthViewModel, currentUser: com.dereva.smart.domain.model.User?) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            
+            // Get token only if user is authenticated (not guest)
+            val token = if (currentUser != null && !currentUser.isGuestMode) {
+                authViewModel.getAuthToken()
+            } else {
+                null
+            }
             
             repository.getQuizContent(quizId, token)
                 .onSuccess { quiz ->
