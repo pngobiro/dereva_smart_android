@@ -266,6 +266,7 @@ fun QuizTakingScreen(
     if (uiState.quizResult != null) {
         QuizResultDialog(
             result = uiState.quizResult!!,
+            questions = quiz.questions,
             onDismiss = {
                 viewModel.resetQuiz()
                 navController.navigateUp()
@@ -518,6 +519,7 @@ fun MultipleSelectOptions(
 @Composable
 fun QuizResultDialog(
     result: com.dereva.smart.domain.model.QuizAttempt,
+    questions: List<QuizQuestion>,
     onDismiss: () -> Unit
 ) {
     var showDetails by remember { mutableStateOf(false) }
@@ -575,9 +577,11 @@ fun QuizResultDialog(
                 if (showDetails && result.feedback.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     result.feedback.forEachIndexed { index, feedback ->
+                        val question = questions.find { it.id == feedback.questionId }
                         QuestionFeedbackCard(
                             questionNumber = index + 1,
-                            feedback = feedback
+                            feedback = feedback,
+                            questionText = question?.question
                         )
                         if (index < result.feedback.size - 1) {
                             Spacer(Modifier.height(8.dp))
@@ -597,7 +601,8 @@ fun QuizResultDialog(
 @Composable
 fun QuestionFeedbackCard(
     questionNumber: Int,
-    feedback: com.dereva.smart.domain.model.QuizFeedback
+    feedback: com.dereva.smart.domain.model.QuizFeedback,
+    questionText: String?
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -631,7 +636,19 @@ fun QuestionFeedbackCard(
                 )
             }
             
+            // Show the question text
+            if (questionText != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = questionText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
             if (feedback.userAnswer != null) {
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Your answer: ${formatUserAnswer(feedback.userAnswer)}",
                     style = MaterialTheme.typography.bodySmall,
