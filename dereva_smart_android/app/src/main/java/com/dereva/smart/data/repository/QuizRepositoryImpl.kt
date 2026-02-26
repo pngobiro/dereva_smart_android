@@ -134,10 +134,11 @@ private fun QuizQuestionDto.toDomain() = QuizQuestion(
     pairs = pairs?.map { it.toDomain() },
     items = items?.map { it.toDomain() },
     acceptedAnswers = acceptedAnswers,
-    partialCredit = partialCredit,
-    caseSensitive = caseSensitive,
+    partialCredit = partialCredit == true,
+    caseSensitive = caseSensitive == true,
     explanation = explanation,
     hint = hint,
+    context = context?.toDomain(),
     media = media?.toDomain(),
     richContent = richContent?.toDomain()
 )
@@ -168,12 +169,19 @@ private fun QuizItemDto.toDomain() = QuizItem(
 private fun QuizMediaDto.toDomain() = QuizMedia(
     type = type,
     url = url,
-    caption = caption
+    caption = caption,
+    position = position ?: "before"
 )
 
 private fun QuizRichContentDto.toDomain() = QuizRichContent(
     type = type,
     content = content
+)
+
+private fun ContentObjectDto.toDomain() = com.dereva.smart.domain.model.ContentObject(
+    format = format,
+    value = value,
+    media = media?.toDomain()
 )
 
 private fun QuizAttemptResponse.toDomain() = QuizAttempt(

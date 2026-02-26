@@ -332,7 +332,7 @@ data class QuizContentDto(
 data class QuizQuestionDto(
     val id: String,
     val type: String,
-    val question: String,
+    val question: Any, // Can be String or ContentObject
     val points: Int,
     val options: List<QuizOptionDto>? = null,
     @SerializedName("correctAnswer")
@@ -346,8 +346,9 @@ data class QuizQuestionDto(
     val partialCredit: Boolean? = null,
     @SerializedName("caseSensitive")
     val caseSensitive: Boolean? = null,
-    val explanation: String,
-    val hint: String? = null,
+    val explanation: Any, // Can be String or ContentObject
+    val hint: Any? = null, // Can be String or ContentObject
+    val context: ContentObjectDto? = null, // New: educational background
     val media: QuizMediaDto? = null,
     @SerializedName("richContent")
     val richContent: QuizRichContentDto? = null
@@ -382,12 +383,20 @@ data class QuizItemDto(
 data class QuizMediaDto(
     val type: String,
     val url: String,
-    val caption: String? = null
+    val caption: String? = null,
+    val position: String? = "before" // before or after
 )
 
 data class QuizRichContentDto(
     val type: String,
     val content: String
+)
+
+// New unified content model
+data class ContentObjectDto(
+    val format: String, // text, html, latex (REQUIRED)
+    val value: String,
+    val media: QuizMediaDto? = null
 )
 
 data class SubmitQuizRequest(

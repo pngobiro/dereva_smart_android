@@ -1,6 +1,8 @@
 package com.dereva.smart.ui.screens.quiz
 
+import android.webkit.WebView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -15,13 +17,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
-import com.dereva.smart.domain.model.QuizContent
-import com.dereva.smart.domain.model.QuizQuestion
-import com.dereva.smart.domain.model.QuestionType
-import org.koin.androidx.compose.koinViewModel
+import coil.compose.AsyncImage
+import com.dereva.smart.domain.model.*
 import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,155 +43,102 @@ fun QuizTakingScreen(
     val currentUser = authState.currentUser
     val quiz = uiState.currentQuiz
     val currentQuestionIndex = uiState.currentQuestionIndex
-    
-    // Load quiz when screen is first displayed
+
+    // Load quiz once on first composition for this quizId
     LaunchedEffect(quizId) {
         if (quiz == null || quiz.id != quizId) {
             viewModel.startQuiz(quizId, authViewModel, currentUser)
         }
     }
-    
-    // Timer
-    var timeRemaining by remember { mutableStateOf(quiz?.timeLimit?.times(60) ?: 0) }
-    var isTimeUp by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(quiz) {
-        if (quiz != null) {
-            timeRemaining = quiz.timeLimit * 60
-            while (timeRemaining > 0 && !isTimeUp) {
-                delay(1000)
+
+    // ---------------------------------------------------------------------------
+    // Timer — only starts once quiz is loaded; does not restart on recomposition
+    // ---------------------------------------------------------------------------
+    val initialSeconds = remember(quiz?.id) { quiz?.timeLimit?.times(60) ?: 0 }
+    var timeRemaining by remember(quiz?.id) { mutableIntStateOf(initialSeconds) }
+    var isTimeUp by remember(quiz?.id) { mutableStateOf(false) }
+
+    LaunchedEffect(quiz?.id) {
+        if (quiz != null && initialSeconds > 0) {
+            while (timeRemaining > 0) {
+                delay(1000L)
                 timeRemaining--
             }
-            if (timeRemaining == 0) {
-                isTimeUp = true
-            }
+            isTimeUp = true
         }
     }
-    
-    // Auto-submit when time is up
+
+    // Auto-submit on time-out
     LaunchedEffect(isTimeUp) {
         if (isTimeUp && quiz != null) {
-            // For guest users, pass null token
-            // For registered users, the repository will handle token internally
             viewModel.submitQuiz(null)
         }
     }
-    
-    // Show error if quiz failed to load
+
+    // ---------------------------------------------------------------------------
+    // Guard states: error / loading / empty
+    // ---------------------------------------------------------------------------
+
     if (uiState.error != null && quiz == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Text(
-                    text = "⚠️ Quiz Not Available",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = when {
-                        uiState.error?.contains("404", ignoreCase = true) == true || 
-                        uiState.error?.contains("not found", ignoreCase = true) == true -> 
-                            "Quiz content file (quiz.json) is not available on the server. Please contact support."
-                        uiState.error != null -> uiState.error!!
-                        else -> "Questions are not available for this quiz"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = { navController.navigateUp() }) {
-                    Text("Go Back")
-                }
-            }
-        }
+        QuizErrorScreen(
+            message = when {
+                uiState.error?.contains("404", ignoreCase = true) == true ||
+                uiState.error?.contains("not found", ignoreCase = true) == true ->
+                    "Quiz content file (quiz.json) is not available on the server. Please contact support."
+                else -> uiState.error ?: "Failed to load quiz."
+            },
+            onBack = { navController.navigateUp() }
+        )
         return
     }
-    
-    // Show loading spinner while quiz is being loaded
+
     if (quiz == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(24.dp)
-            ) {
-                CircularProgressIndicator()
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Loading quiz...",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+        FullScreenLoading(message = "Loading quiz…")
         return
     }
-    
-    // Check if quiz has no questions
+
     if (quiz.questions.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Text(
-                    text = "⚠️ No Questions Available",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "This quiz bank does not have any questions yet. Please try another quiz.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = { navController.navigateUp() }) {
-                    Text("Go Back")
-                }
-            }
-        }
+        QuizErrorScreen(
+            message = "This quiz has no questions yet. Please try another quiz.",
+            onBack = { navController.navigateUp() }
+        )
         return
     }
-    
+
+    // ---------------------------------------------------------------------------
+    // Main quiz UI
+    // ---------------------------------------------------------------------------
+
     val currentQuestion = quiz.questions.getOrNull(currentQuestionIndex)
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text(quiz.title)
                         Text(
-                            text = "Question ${currentQuestionIndex + 1}/${quiz.questions.size}",
+                            text = quiz.title,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Question ${currentQuestionIndex + 1} / ${quiz.questions.size}",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        // Show confirmation dialog before exiting
-                        navController.navigateUp()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    // Timer
                     Text(
                         text = formatTime(timeRemaining),
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (timeRemaining < 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        color = if (timeRemaining < 60)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.padding(end = 16.dp)
                     )
                 },
@@ -208,26 +162,19 @@ fun QuizTakingScreen(
                         onClick = { viewModel.previousQuestion() },
                         enabled = currentQuestionIndex > 0
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
                         Text("Previous")
                     }
-                    
+
                     if (currentQuestionIndex < quiz.questions.size - 1) {
-                        Button(
-                            onClick = { viewModel.nextQuestion() }
-                        ) {
+                        Button(onClick = { viewModel.nextQuestion() }) {
                             Text("Next")
                             Spacer(Modifier.width(4.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                         }
                     } else {
-                        Button(
-                            onClick = {
-                                // Submit quiz - token will be fetched in coroutine
-                                viewModel.submitQuiz(null)
-                            }
-                        ) {
+                        Button(onClick = { viewModel.submitQuiz(null) }) {
                             Text("Submit Quiz")
                         }
                     }
@@ -240,12 +187,11 @@ fun QuizTakingScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Progress indicator
             LinearProgressIndicator(
                 progress = { (currentQuestionIndex + 1).toFloat() / quiz.questions.size },
                 modifier = Modifier.fillMaxWidth()
             )
-            
+
             if (currentQuestion != null) {
                 QuestionView(
                     question = currentQuestion,
@@ -261,11 +207,12 @@ fun QuizTakingScreen(
             }
         }
     }
-    
-    // Show results when quiz is submitted
+
+    // Results dialog
     if (uiState.quizResult != null) {
         QuizResultDialog(
             result = uiState.quizResult!!,
+            passingScore = quiz.passingScore,
             questions = quiz.questions,
             onDismiss = {
                 viewModel.resetQuiz()
@@ -273,23 +220,21 @@ fun QuizTakingScreen(
             }
         )
     }
-    
-    // Show error dialog if submission fails
+
+    // Submission error dialog
     if (uiState.error != null && uiState.quizResult == null) {
         AlertDialog(
             onDismissRequest = { viewModel.clearError() },
             title = { Text("Submission Error") },
-            text = { Text(uiState.error ?: "Failed to submit quiz") },
+            text = { Text(uiState.error ?: "Failed to submit quiz.") },
             confirmButton = {
-                Button(onClick = { viewModel.clearError() }) {
-                    Text("OK")
-                }
+                Button(onClick = { viewModel.clearError() }) { Text("OK") }
             }
         )
     }
-    
-    // Show loading overlay during submission
-    if (uiState.isLoading && quiz != null) {
+
+    // Submission loading overlay
+    if (uiState.isLoading) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -302,14 +247,57 @@ fun QuizTakingScreen(
             ) {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Submitting quiz...",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Text("Submitting quiz…", style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Guard state composables
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun FullScreenLoading(message: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            CircularProgressIndicator()
+            Spacer(Modifier.height(16.dp))
+            Text(message, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+}
+
+@Composable
+private fun QuizErrorScreen(message: String, onBack: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(
+                text = "⚠️ Quiz Not Available",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onBack) { Text("Go Back") }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Question view
+// ---------------------------------------------------------------------------
 
 @Composable
 fun QuestionView(
@@ -319,7 +307,8 @@ fun QuestionView(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        // Question text
+
+        // Question card
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -327,56 +316,302 @@ fun QuestionView(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = question.question,
+                RenderContentField(
+                    content = question.question,
                     style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold
                 )
-                if (question.hint != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "💡 Hint: ${question.hint}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
+            }
+        }
+
+        // Legacy: top-level media field
+        @Suppress("DEPRECATION")
+        question.media?.let { media ->
+            Spacer(Modifier.height(16.dp))
+            MediaContent(media = media)
+        }
+
+        // Legacy: richContent field
+        @Suppress("DEPRECATION")
+        question.richContent?.let { rc ->
+            Spacer(Modifier.height(16.dp))
+            LegacyRichContent(richContent = rc)
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Answer input
+        when (question.type) {
+            QuestionType.MULTIPLE_CHOICE -> MultipleChoiceOptions(
+                options = question.options ?: emptyList(),
+                selectedOption = userAnswer as? String,
+                onOptionSelected = onAnswerSelected
+            )
+            QuestionType.TRUE_FALSE -> TrueFalseOptions(
+                selectedAnswer = userAnswer as? Boolean,
+                onAnswerSelected = onAnswerSelected
+            )
+            QuestionType.MULTIPLE_SELECT -> MultipleSelectOptions(
+                options = question.options ?: emptyList(),
+                selectedOptions = (userAnswer as? List<*>)?.filterIsInstance<String>()
+                    ?: emptyList(),
+                onOptionsSelected = onAnswerSelected
+            )
+            else -> {
+                Text(
+                    text = "Question type '${question.type.name}' is not yet supported.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         
-        Spacer(Modifier.height(24.dp))
-        
-        // Answer options based on question type
-        when (question.type) {
-            QuestionType.MULTIPLE_CHOICE -> {
-                MultipleChoiceOptions(
-                    options = question.options ?: emptyList(),
-                    selectedOption = userAnswer as? String,
-                    onOptionSelected = onAnswerSelected
-                )
+        // Educational context — shown at the bottom after answer options
+        question.context?.let { ctx ->
+            Spacer(Modifier.height(16.dp))
+            RenderContent(ctx)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Content rendering helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Renders a field that can be a plain [String] or a deserialised [Map] (ContentObject).
+ */
+@Composable
+fun RenderContentField(
+    content: Any,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    fontWeight: FontWeight? = null
+) {
+    when (content) {
+        is String -> Text(text = content, style = style, fontWeight = fontWeight, color = color)
+        is Map<*, *> -> {
+            val obj = parseContentObject(content)
+            if (obj != null) {
+                RenderContent(obj)
+            } else {
+                Text(text = content.toString(), style = style, fontWeight = fontWeight, color = color)
             }
-            QuestionType.TRUE_FALSE -> {
-                TrueFalseOptions(
-                    selectedAnswer = userAnswer as? Boolean,
-                    onAnswerSelected = onAnswerSelected
-                )
-            }
-            QuestionType.MULTIPLE_SELECT -> {
-                MultipleSelectOptions(
-                    options = question.options ?: emptyList(),
-                    selectedOptions = (userAnswer as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                    onOptionsSelected = onAnswerSelected
-                )
-            }
-            else -> {
-                Text("Question type not yet supported")
+        }
+        else -> Text(text = content.toString(), style = style, fontWeight = fontWeight, color = color)
+    }
+}
+
+/** Parses a raw [Map] (from JSON deserialisation) into a [ContentObject]. Returns null if invalid. */
+fun parseContentObject(map: Map<*, *>): ContentObject? {
+    val format = map["format"] as? String ?: return null
+    val value  = map["value"]  as? String ?: return null
+    val mediaMap = map["media"] as? Map<*, *>
+    val media = mediaMap?.let {
+        val url = it["url"] as? String
+        if (url != null) {
+            QuizMedia(
+                type     = it["type"]     as? String ?: "image",
+                url      = url,
+                caption  = it["caption"]  as? String,
+                position = it["position"] as? String ?: "before"
+            )
+        } else {
+            null
+        }
+    }
+    return ContentObject(format = format, value = value, media = media)
+}
+
+/** Renders a [ContentObject] — media (before), content, media (after). */
+@Composable
+fun RenderContent(contentObject: ContentObject) {
+    Column {
+        if (contentObject.media?.position == "before") {
+            MediaContent(media = contentObject.media)
+            Spacer(Modifier.height(12.dp))
+        }
+
+        when (contentObject.format.lowercase()) {
+            "html"  -> HtmlContent(html = contentObject.value)
+            "latex" -> Text(
+                // LaTeX rendering planned — display raw source for now
+                text = contentObject.value,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            else    -> Text(
+                text = contentObject.value,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        if (contentObject.media?.position == "after") {
+            Spacer(Modifier.height(12.dp))
+            MediaContent(media = contentObject.media)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+
+@Composable
+fun MediaContent(media: QuizMedia) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            when (media.type.lowercase()) {
+                "image" -> {
+                    AsyncImage(
+                        model = media.url,
+                        contentDescription = media.caption,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp),
+                        error = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
+                        placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery)
+                    )
+                    media.caption?.let { caption ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = caption,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                "video" -> {
+                    Text(
+                        text = "📹 ${media.caption ?: "Watch video"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = media.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                "audio" -> {
+                    Text(
+                        text = "🔊 ${media.caption ?: "Audio content"}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Legacy rich content (deprecated)
+// ---------------------------------------------------------------------------
+
+@Suppress("DEPRECATION")
+@Composable
+private fun LegacyRichContent(richContent: QuizRichContent) {
+    when (richContent.type.lowercase()) {
+        "html" -> HtmlContent(html = richContent.content)
+        else   -> Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Text(
+                text = richContent.content,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HTML renderer
+// ---------------------------------------------------------------------------
+
+@Composable
+fun HtmlContent(html: String) {
+    // wrapHeight tracks the content height reported by the WebView so we
+    // don't clip content or waste space with a fixed height.
+    var contentHeightDp by remember { mutableIntStateOf(120) }
+
+    AndroidView(
+        factory = { context ->
+            WebView(context).apply {
+                settings.apply {
+                    javaScriptEnabled = false
+                    loadWithOverviewMode = true
+                    useWideViewPort = false
+                    setSupportZoom(false)
+                }
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                // Report content height back to Compose
+                viewTreeObserver.addOnGlobalLayoutListener {
+                    val h = (contentHeight * resources.displayMetrics.density).toInt()
+                    if (h > 0) contentHeightDp = h
+                }
+            }
+        },
+        update = { webView ->
+            val htmlContent = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        * { box-sizing: border-box; }
+                        body {
+                            margin: 0;
+                            padding: 12px;
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            font-size: 14px;
+                            line-height: 1.5;
+                        }
+                        table {
+                            border-collapse: collapse;
+                            width: 100%;
+                            margin: 8px 0;
+                        }
+                        th, td {
+                            padding: 8px;
+                            text-align: left;
+                            border: 1px solid #ddd;
+                        }
+                        th { background-color: #f5f5f5; font-weight: bold; }
+                        h3, h4 { margin: 0 0 8px 0; }
+                        ul, ol { margin: 8px 0; padding-left: 20px; }
+                        li { margin-bottom: 4px; }
+                        p { margin: 8px 0; }
+                    </style>
+                </head>
+                <body>$html</body>
+                </html>
+            """.trimIndent()
+            webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 80.dp, max = 500.dp)
+            // Expand to measured content height (capped above)
+            .height(contentHeightDp.coerceIn(80, 500).dp)
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Answer option composables
+// ---------------------------------------------------------------------------
+
 @Composable
 fun MultipleChoiceOptions(
-    options: List<com.dereva.smart.domain.model.QuizOption>,
+    options: List<QuizOption>,
     selectedOption: String?,
     onOptionSelected: (String) -> Unit
 ) {
@@ -385,16 +620,17 @@ fun MultipleChoiceOptions(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         options.forEach { option ->
+            val isSelected = selectedOption == option.id
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .selectable(
-                        selected = selectedOption == option.id,
+                        selected = isSelected,
                         onClick = { onOptionSelected(option.id) },
                         role = Role.RadioButton
                     ),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (selectedOption == option.id)
+                    containerColor = if (isSelected)
                         MaterialTheme.colorScheme.secondaryContainer
                     else
                         MaterialTheme.colorScheme.surface
@@ -404,15 +640,9 @@ fun MultipleChoiceOptions(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RadioButton(
-                        selected = selectedOption == option.id,
-                        onClick = null
-                    )
+                    RadioButton(selected = isSelected, onClick = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = option.text,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    OptionText(text = option.text)
                 }
             }
         }
@@ -429,16 +659,17 @@ fun TrueFalseOptions(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         listOf(true to "True", false to "False").forEach { (value, label) ->
+            val isSelected = selectedAnswer == value
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .selectable(
-                        selected = selectedAnswer == value,
+                        selected = isSelected,
                         onClick = { onAnswerSelected(value) },
                         role = Role.RadioButton
                     ),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (selectedAnswer == value)
+                    containerColor = if (isSelected)
                         MaterialTheme.colorScheme.secondaryContainer
                     else
                         MaterialTheme.colorScheme.surface
@@ -448,15 +679,9 @@ fun TrueFalseOptions(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RadioButton(
-                        selected = selectedAnswer == value,
-                        onClick = null
-                    )
+                    RadioButton(selected = isSelected, onClick = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Text(text = label, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -465,24 +690,33 @@ fun TrueFalseOptions(
 
 @Composable
 fun MultipleSelectOptions(
-    options: List<com.dereva.smart.domain.model.QuizOption>,
+    options: List<QuizOption>,
     selectedOptions: List<String>,
     onOptionsSelected: (List<String>) -> Unit
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = "Select all that apply:",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
+
         options.forEach { option ->
+            val isChecked = selectedOptions.contains(option.id)
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Make the whole card tappable — not just the checkbox
+                    .clickable {
+                        val updated = if (isChecked) {
+                            selectedOptions - option.id
+                        } else {
+                            selectedOptions + option.id
+                        }
+                        onOptionsSelected(updated)
+                    },
                 colors = CardDefaults.cardColors(
-                    containerColor = if (selectedOptions.contains(option.id))
+                    containerColor = if (isChecked)
                         MaterialTheme.colorScheme.secondaryContainer
                     else
                         MaterialTheme.colorScheme.surface
@@ -495,35 +729,44 @@ fun MultipleSelectOptions(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
-                        checked = selectedOptions.contains(option.id),
-                        onCheckedChange = { checked ->
-                            val newSelection = if (checked) {
-                                selectedOptions + option.id
-                            } else {
-                                selectedOptions - option.id
-                            }
-                            onOptionsSelected(newSelection)
-                        }
+                        checked = isChecked,
+                        onCheckedChange = null  // handled by card clickable above
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = option.text,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    OptionText(text = option.text)
                 }
             }
         }
     }
 }
 
+/** Renders option text — handles plain String or ContentObject. */
+@Composable
+private fun OptionText(text: Any) {
+    when (text) {
+        is String    -> Text(text = text, style = MaterialTheme.typography.bodyLarge)
+        is Map<*, *> -> {
+            val obj = parseContentObject(text)
+            if (obj != null) RenderContent(obj)
+            else Text(text = text.toString(), style = MaterialTheme.typography.bodyLarge)
+        }
+        else -> Text(text = text.toString(), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Results dialog
+// ---------------------------------------------------------------------------
+
 @Composable
 fun QuizResultDialog(
-    result: com.dereva.smart.domain.model.QuizAttempt,
+    result: QuizAttempt,
+    passingScore: Int,
     questions: List<QuizQuestion>,
     onDismiss: () -> Unit
 ) {
     var showDetails by remember { mutableStateOf(false) }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -533,36 +776,35 @@ fun QuizResultDialog(
             )
         },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState())
-            ) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     text = "Score: ${result.score}%",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (result.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    color = if (result.passed)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.error
                 )
                 Spacer(Modifier.height(16.dp))
-                Text("Correct: ${result.correctAnswers}/${result.totalQuestions}")
+                Text("Correct answers: ${result.correctAnswers} / ${result.totalQuestions}")
                 Text("Time taken: ${formatTime(result.timeTaken)}")
+                Text("Passing score: $passingScore%")
                 Spacer(Modifier.height(8.dp))
+
                 if (result.passed) {
-                    Text(
-                        "You passed! Great job!",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text("You passed! Great job!", color = MaterialTheme.colorScheme.primary)
                 } else {
                     Text(
-                        "You need ${result.totalQuestions * 70 / 100} correct answers to pass. Keep studying!",
+                        text = "You need $passingScore% to pass. Keep studying!",
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-                
+
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
-                
-                // Toggle button for detailed feedback
+
                 TextButton(
                     onClick = { showDetails = !showDetails },
                     modifier = Modifier.fillMaxWidth()
@@ -572,18 +814,19 @@ fun QuizResultDialog(
                         style = MaterialTheme.typography.titleSmall
                     )
                 }
-                
-                // Show detailed feedback if toggled
+
                 if (showDetails && result.feedback.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     result.feedback.forEachIndexed { index, feedback ->
-                        val question = questions.find { it.id == feedback.questionId }
+                        val questionText = questions
+                            .find { it.id == feedback.questionId }
+                            ?.let { extractQuestionText(it.question) }
                         QuestionFeedbackCard(
                             questionNumber = index + 1,
                             feedback = feedback,
-                            questionText = question?.question
+                            questionText = questionText
                         )
-                        if (index < result.feedback.size - 1) {
+                        if (index < result.feedback.lastIndex) {
                             Spacer(Modifier.height(8.dp))
                         }
                     }
@@ -591,25 +834,27 @@ fun QuizResultDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Done")
-            }
+            Button(onClick = onDismiss) { Text("Done") }
         }
     )
 }
 
+// ---------------------------------------------------------------------------
+// Feedback card
+// ---------------------------------------------------------------------------
+
 @Composable
 fun QuestionFeedbackCard(
     questionNumber: Int,
-    feedback: com.dereva.smart.domain.model.QuizFeedback,
+    feedback: QuizFeedback,
     questionText: String?
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (feedback.isCorrect) 
+            containerColor = if (feedback.isCorrect)
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            else 
+            else
                 MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
         )
     ) {
@@ -629,56 +874,68 @@ fun QuestionFeedbackCard(
                 Text(
                     text = if (feedback.isCorrect) "✓ Correct" else "✗ Incorrect",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (feedback.isCorrect) 
-                        MaterialTheme.colorScheme.primary 
-                    else 
+                    color = if (feedback.isCorrect)
+                        MaterialTheme.colorScheme.primary
+                    else
                         MaterialTheme.colorScheme.error
                 )
             }
-            
-            // Show the question text
-            if (questionText != null) {
+
+            questionText?.let {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = questionText,
+                    text = it,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Medium
                 )
             }
-            
-            if (feedback.userAnswer != null) {
+
+            feedback.userAnswer?.let { answer ->
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Your answer: ${formatUserAnswer(feedback.userAnswer)}",
+                    text = "Your answer: ${formatUserAnswer(answer)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             if (feedback.explanation.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "💡 ${feedback.explanation}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        text = "💡 ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = feedback.explanation,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
 
-fun formatUserAnswer(answer: Any?): String {
-    return when (answer) {
-        is String -> answer
-        is Boolean -> if (answer) "True" else "False"
-        is List<*> -> answer.joinToString(", ")
-        else -> answer?.toString() ?: "No answer"
-    }
+// ---------------------------------------------------------------------------
+// Pure utility functions
+// ---------------------------------------------------------------------------
+
+fun formatUserAnswer(answer: Any?): String = when (answer) {
+    is Boolean    -> if (answer) "True" else "False"
+    is List<*>    -> answer.joinToString(", ")
+    else          -> answer?.toString() ?: "No answer"
+}
+
+fun extractQuestionText(question: Any): String = when (question) {
+    is String    -> question
+    is Map<*, *> -> parseContentObject(question)?.value ?: question.toString()
+    else         -> question.toString()
 }
 
 fun formatTime(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return String.format("%02d:%02d", minutes, secs)
+    val m = seconds / 60
+    val s = seconds % 60
+    return "%02d:%02d".format(m, s)
 }
