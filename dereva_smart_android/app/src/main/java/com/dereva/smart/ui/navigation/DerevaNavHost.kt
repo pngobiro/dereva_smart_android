@@ -84,10 +84,20 @@ fun DerevaNavHost() {
         navController = navController,
         startDestination = startDestination
     ) {
-        // Category Selection Screen
+        // Category Selection Screen (Guest users only)
         composable(Screen.CategorySelection.route) {
             val authViewModel: AuthViewModel = koinViewModel()
             val authState by authViewModel.uiState.collectAsState()
+            
+            // Redirect registered users to home
+            LaunchedEffect(authState.currentUser) {
+                val user = authState.currentUser
+                if (user != null && !user.isGuestMode) {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.CategorySelection.route) { inclusive = true }
+                    }
+                }
+            }
             
             // Start guest mode if no user exists
             LaunchedEffect(Unit) {

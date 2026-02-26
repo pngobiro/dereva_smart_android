@@ -58,14 +58,6 @@ fun ModuleListScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
-                },
-                actions = {
-                    // Category filter for guests
-                    if (currentUser?.isGuestMode == true) {
-                        IconButton(onClick = { navController.navigate("category_selection") }) {
-                            Icon(Icons.Default.Add, "Change Category")
-                        }
-                    }
                 }
             )
         }

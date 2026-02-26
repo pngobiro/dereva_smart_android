@@ -144,19 +144,19 @@ fun HomeScreen(navController: NavController) {
                                 ) {
                                     Text("Create Account")
                                 }
+                                OutlinedButton(
+                                    onClick = { navController.navigate(Screen.CategorySelection.route) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Change Category")
+                                }
                             } else {
                                 Button(
                                     onClick = { navController.navigate(Screen.Payment.route) },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text("Get Premium")
                                 }
-                            }
-                            OutlinedButton(
-                                onClick = { navController.navigate(Screen.CategorySelection.route) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Change Category")
                             }
                         }
                     }
