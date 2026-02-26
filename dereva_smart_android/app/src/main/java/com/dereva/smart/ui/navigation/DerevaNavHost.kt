@@ -66,6 +66,7 @@ sealed class Screen(val route: String) {
     object LessonViewer : Screen("lesson_viewer/{lessonId}") {
         fun createRoute(lessonId: String) = "lesson_viewer/$lessonId"
     }
+    object QuizTaking : Screen("quiz_taking")
     object Simulation : Screen("simulation")
 }
 
@@ -175,7 +176,8 @@ fun DerevaNavHost() {
             val user = currentUser
             var showCategoryDialog by remember { mutableStateOf(false) }
             
-            // Check if guest needs to select category
+            // Only show category selection for guest users who haven't chosen a category
+            // Registered users already have a category from registration
             LaunchedEffect(user) {
                 if (user?.isGuestMode == true && 
                     user.targetCategory == LicenseCategory.B1 && 
@@ -196,18 +198,14 @@ fun DerevaNavHost() {
                         mockTestViewModel.setUserCategory(category.name)
                     }
                 )
-            } else if (user?.isSubscriptionActive == true) {
+            } else if (user?.isSubscriptionActive == true || user?.isGuestMode == true) {
                 MockTestScreen(
                     navController = navController,
                     viewModel = mockTestViewModel
                 )
             } else {
                 LaunchedEffect(Unit) {
-                    if (user?.isGuestMode == true) {
-                        navController.navigate(Screen.Register.route)
-                    } else {
-                        navController.navigate(Screen.Payment.route)
-                    }
+                    navController.navigate(Screen.Payment.route)
                 }
             }
         }
@@ -258,6 +256,15 @@ fun DerevaNavHost() {
             }
         }
         
+        composable(Screen.QuizTaking.route) {
+            val quizViewModel: com.dereva.smart.ui.screens.quiz.QuizViewModel = koinViewModel()
+            com.dereva.smart.ui.screens.quiz.QuizTakingScreen(
+                navController = navController,
+                viewModel = quizViewModel,
+                authViewModel = authViewModel
+            )
+        }
+        
         composable(Screen.ModuleList.route) {
             val viewModel: ContentViewModel = koinViewModel { parametersOf(currentUser?.id ?: "guest") }
             var showCategoryDialog by remember { mutableStateOf(false) }
@@ -269,7 +276,8 @@ fun DerevaNavHost() {
                 }
             }
             
-            // Check if guest needs to select category
+            // Only show category selection for guest users who haven't chosen a category
+            // Registered users already have a category from registration
             LaunchedEffect(currentUser) {
                 if (currentUser?.isGuestMode == true && 
                     currentUser.targetCategory == LicenseCategory.B1 && 
