@@ -66,7 +66,9 @@ sealed class Screen(val route: String) {
     object LessonViewer : Screen("lesson_viewer/{lessonId}") {
         fun createRoute(lessonId: String) = "lesson_viewer/$lessonId"
     }
-    object QuizTaking : Screen("quiz_taking")
+    object QuizTaking : Screen("quiz_taking/{quizId}") {
+        fun createRoute(quizId: String) = "quiz_taking/$quizId"
+    }
     object Simulation : Screen("simulation")
 }
 
@@ -256,12 +258,17 @@ fun DerevaNavHost() {
             }
         }
         
-        composable(Screen.QuizTaking.route) {
+        composable(
+            route = Screen.QuizTaking.route,
+            arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val quizId = backStackEntry.arguments?.getString("quizId") ?: ""
             val quizViewModel: com.dereva.smart.ui.screens.quiz.QuizViewModel = koinViewModel()
             com.dereva.smart.ui.screens.quiz.QuizTakingScreen(
                 navController = navController,
                 viewModel = quizViewModel,
-                authViewModel = authViewModel
+                authViewModel = authViewModel,
+                quizId = quizId
             )
         }
         

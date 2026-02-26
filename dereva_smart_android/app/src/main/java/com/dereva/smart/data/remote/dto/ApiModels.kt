@@ -425,7 +425,7 @@ data class QuizFeedbackDto(
     val isCorrect: Boolean,
     val explanation: String,
     @SerializedName("userAnswer")
-    val userAnswer: String? = null
+    val userAnswer: Any? = null // Can be String, Boolean, or List<String>
 )
 
 data class QuizAttemptsResponse(

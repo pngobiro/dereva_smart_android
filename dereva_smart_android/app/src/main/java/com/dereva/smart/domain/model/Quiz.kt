@@ -141,7 +141,7 @@ data class QuizFeedback(
     val questionId: String,
     val isCorrect: Boolean,
     val explanation: String,
-    val userAnswer: String? = null
+    val userAnswer: @RawValue Any? = null // Can be String, Boolean, or List<String>
 ) : Parcelable
 
 // QuizAnswer is not Parcelable because it contains Any? type

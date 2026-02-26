@@ -1,5 +1,6 @@
 package com.dereva.smart.ui.screens.quiz
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -27,12 +28,21 @@ import kotlinx.coroutines.delay
 fun QuizTakingScreen(
     navController: NavController,
     viewModel: QuizViewModel = koinViewModel(),
-    authViewModel: com.dereva.smart.ui.screens.auth.AuthViewModel = koinViewModel()
+    authViewModel: com.dereva.smart.ui.screens.auth.AuthViewModel = koinViewModel(),
+    quizId: String
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val authState by authViewModel.uiState.collectAsState()
+    val currentUser = authState.currentUser
     val quiz = uiState.currentQuiz
     val currentQuestionIndex = uiState.currentQuestionIndex
+    
+    // Load quiz when screen is first displayed
+    LaunchedEffect(quizId) {
+        if (quiz == null || quiz.id != quizId) {
+            viewModel.startQuiz(quizId, authViewModel, currentUser)
+        }
+    }
     
     // Timer
     var timeRemaining by remember { mutableStateOf(quiz?.timeLimit?.times(60) ?: 0) }
@@ -60,12 +70,89 @@ fun QuizTakingScreen(
         }
     }
     
+    // Show error if quiz failed to load
+    if (uiState.error != null && quiz == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "⚠️ Quiz Not Available",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = when {
+                        uiState.error?.contains("404", ignoreCase = true) == true || 
+                        uiState.error?.contains("not found", ignoreCase = true) == true -> 
+                            "Quiz content file (quiz.json) is not available on the server. Please contact support."
+                        uiState.error != null -> uiState.error!!
+                        else -> "Questions are not available for this quiz"
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = { navController.navigateUp() }) {
+                    Text("Go Back")
+                }
+            }
+        }
+        return
+    }
+    
+    // Show loading spinner while quiz is being loaded
     if (quiz == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Loading quiz...",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+        return
+    }
+    
+    // Check if quiz has no questions
+    if (quiz.questions.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "⚠️ No Questions Available",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "This quiz bank does not have any questions yet. Please try another quiz.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = { navController.navigateUp() }) {
+                    Text("Go Back")
+                }
+            }
         }
         return
     }
@@ -184,6 +271,42 @@ fun QuizTakingScreen(
                 navController.navigateUp()
             }
         )
+    }
+    
+    // Show error dialog if submission fails
+    if (uiState.error != null && uiState.quizResult == null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Submission Error") },
+            text = { Text(uiState.error ?: "Failed to submit quiz") },
+            confirmButton = {
+                Button(onClick = { viewModel.clearError() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+    
+    // Show loading overlay during submission
+    if (uiState.isLoading && quiz != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Submitting quiz...",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
     }
 }
 
