@@ -37,7 +37,7 @@ fun ModuleListScreen(
                         Text("Learning Modules")
                         currentUser?.let {
                             Text(
-                                text = "Category: ${it.targetCategory.name}",
+                                text = if (it.isGuestMode) "Browse all categories" else "Category: ${it.targetCategory.name}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -46,6 +46,14 @@ fun ModuleListScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    // Category filter for guests
+                    if (currentUser?.isGuestMode == true) {
+                        IconButton(onClick = { navController.navigate("category_selection") }) {
+                            Icon(Icons.Default.Add, "Change Category")
+                        }
                     }
                 }
             )
@@ -161,57 +169,69 @@ fun ModuleListScreen(
                 }
             }
             
-            // Show message if no modules after loading
-            if (uiState.modules.isEmpty() && !uiState.isLoading) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            // Content area with loading overlay
+            Box(modifier = Modifier.weight(1f)) {
+                // Show message if no modules and not loading
+                if (uiState.modules.isEmpty() && !uiState.isLoading && currentUser != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
-                        Text(
-                            text = "No modules available",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Syncing content from server...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No modules available",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = "Check your internet connection and try again",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                // Modules List
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.modules) { module ->
+                        ModuleCard(
+                            module = module,
+                            onModuleClick = {
+                                viewModel.selectModule(module.id)
+                                navController.navigate("lesson_list/${module.id}")
+                            },
+                            onDownloadClick = {
+                                viewModel.downloadModule(module.id)
+                            }
                         )
                     }
                 }
-            }
-            
-            // Modules List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(uiState.modules) { module ->
-                    ModuleCard(
-                        module = module,
-                        onModuleClick = {
-                            viewModel.selectModule(module.id)
-                            navController.navigate("lesson_list/${module.id}")
-                        },
-                        onDownloadClick = {
-                            viewModel.downloadModule(module.id)
+                
+                // Loading Overlay
+                if (uiState.isLoading || currentUser == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = if (currentUser == null) "Initializing..." else "Loading modules...",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
-                    )
-                }
-            }
-            
-            // Loading
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+                    }
                 }
             }
             

@@ -35,7 +35,7 @@ class ContentViewModel(
     private var currentUser: User? = null
     
     init {
-        loadModules()
+        // Don't load modules here - wait for setCurrentUser to be called with actual user
         loadActiveDownloads()
         loadContentStats()
     }
@@ -44,7 +44,13 @@ class ContentViewModel(
         Log.d(TAG, "setCurrentUser called with user: ${user?.name}, category: ${user?.targetCategory?.name}, isGuest: ${user?.isGuestMode}")
         currentUser = user
         _uiState.update { it.copy(isGuestMode = user?.isGuestMode ?: true) }
-        loadModules() // Reload modules when user changes
+        
+        // Only load modules if user is set
+        if (user != null) {
+            loadModules()
+        } else {
+            Log.w(TAG, "User is null, skipping module load")
+        }
     }
     
     companion object {
@@ -53,11 +59,15 @@ class ContentViewModel(
     
     fun checkSubscriptionAccess(module: Module): Boolean {
         if (!module.requiresSubscription) return true
+        // Guests cannot access premium content
+        if (currentUser?.isGuestMode == true) return false
         return currentUser?.isSubscriptionActive == true
     }
     
     fun checkSubscriptionAccess(lesson: Lesson): Boolean {
         if (!lesson.requiresSubscription) return true
+        // Guests cannot access premium content
+        if (currentUser?.isGuestMode == true) return false
         return currentUser?.isSubscriptionActive == true
     }
     
@@ -67,62 +77,57 @@ class ContentViewModel(
             _uiState.update { it.copy(isLoading = true) }
             
             val category = currentUser?.targetCategory?.name
-            Log.d(TAG, "Loading modules for category: $category")
+            Log.d(TAG, "Loading modules for category: $category, isGuest: ${currentUser?.isGuestMode}")
             
-            if (category != null) {
-                // Load directly from API
-                try {
-                    Log.d(TAG, "Calling API: getModules($category)")
-                    val response = com.dereva.smart.data.remote.ApiClient.apiService.getModules(category)
+            // Load directly from API - guests can browse any category
+            try {
+                Log.d(TAG, "Calling API: getModules($category)")
+                val response = com.dereva.smart.data.remote.ApiClient.apiService.getModules(category)
+                
+                Log.d(TAG, "API response: isSuccessful=${response.isSuccessful}, code=${response.code()}")
+                
+                if (response.isSuccessful) {
+                    val moduleDtos = response.body()
+                    Log.d(TAG, "Received ${moduleDtos?.size ?: 0} modules from API")
                     
-                    Log.d(TAG, "API response: isSuccessful=${response.isSuccessful}, code=${response.code()}")
+                    val modules = moduleDtos?.map { dto ->
+                        Log.d(TAG, "Module: id=${dto.id}, title=${dto.title}, category=${dto.category}")
+                        Module(
+                            id = dto.id,
+                            title = dto.title,
+                            description = dto.description,
+                            orderIndex = dto.orderIndex,
+                            licenseCategory = LicenseCategory.valueOf(dto.category),
+                            thumbnailUrl = dto.iconUrl,
+                            estimatedDuration = 0,
+                            lessonCount = 0,
+                            isDownloaded = false,
+                            downloadSize = 0L,
+                            status = ModuleStatus.UNLOCKED,
+                            completionPercentage = 0,
+                            requiresSubscription = dto.requiresSubscription,
+                            createdAt = java.util.Date(),
+                            updatedAt = java.util.Date()
+                        )
+                    } ?: emptyList()
                     
-                    if (response.isSuccessful) {
-                        val moduleDtos = response.body()
-                        Log.d(TAG, "Received ${moduleDtos?.size ?: 0} modules from API")
-                        
-                        val modules = moduleDtos?.map { dto ->
-                            Log.d(TAG, "Module: id=${dto.id}, title=${dto.title}, category=${dto.category}")
-                            Module(
-                                id = dto.id,
-                                title = dto.title,
-                                description = dto.description,
-                                orderIndex = dto.orderIndex,
-                                licenseCategory = LicenseCategory.valueOf(dto.category),
-                                thumbnailUrl = dto.iconUrl,
-                                estimatedDuration = 0,
-                                lessonCount = 0,
-                                isDownloaded = false,
-                                downloadSize = 0L,
-                                status = ModuleStatus.UNLOCKED,
-                                completionPercentage = 0,
-                                requiresSubscription = dto.requiresSubscription,
-                                createdAt = java.util.Date(),
-                                updatedAt = java.util.Date()
-                            )
-                        } ?: emptyList()
-                        
-                        Log.d(TAG, "Converted to ${modules.size} domain modules")
-                        _uiState.update { state -> 
-                            val currentMod = state.currentModule ?: modules.find { it.id == state.selectedModuleId }
-                            state.copy(
-                                modules = modules, 
-                                currentModule = currentMod,
-                                isLoading = false
-                            ) 
-                        }
-                    } else {
-                        val errorMsg = "Failed to load modules: ${response.code()} - ${response.message()}"
-                        Log.e(TAG, errorMsg)
-                        _uiState.update { it.copy(error = errorMsg, isLoading = false) }
+                    Log.d(TAG, "Converted to ${modules.size} domain modules")
+                    _uiState.update { state -> 
+                        val currentMod = state.currentModule ?: modules.find { it.id == state.selectedModuleId }
+                        state.copy(
+                            modules = modules, 
+                            currentModule = currentMod,
+                            isLoading = false
+                        ) 
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Exception loading modules", e)
-                    _uiState.update { it.copy(error = e.message, isLoading = false) }
+                } else {
+                    val errorMsg = "Failed to load modules: ${response.code()} - ${response.message()}"
+                    Log.e(TAG, errorMsg)
+                    _uiState.update { it.copy(error = errorMsg, isLoading = false) }
                 }
-            } else {
-                Log.w(TAG, "No category set, skipping module load")
-                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception loading modules", e)
+                _uiState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
     }
@@ -137,12 +142,17 @@ class ContentViewModel(
             Log.d(TAG, "Found module: ${module?.title}")
             
             if (module != null && !checkSubscriptionAccess(module)) {
-                Log.d(TAG, "Module requires subscription")
+                Log.d(TAG, "Module requires subscription, isGuest: ${currentUser?.isGuestMode}")
+                val message = if (currentUser?.isGuestMode == true) {
+                    "This module requires an account with premium subscription"
+                } else {
+                    "This module requires a premium subscription"
+                }
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         showSubscriptionRequired = true,
-                        subscriptionRequiredMessage = "This module requires a premium subscription"
+                        subscriptionRequiredMessage = message
                     )
                 }
             } else {
@@ -273,11 +283,16 @@ class ContentViewModel(
             }
             
             if (lesson != null && !checkSubscriptionAccess(lesson)) {
+                val message = if (currentUser?.isGuestMode == true) {
+                    "This lesson requires an account with premium subscription"
+                } else {
+                    "This lesson requires a premium subscription"
+                }
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         showSubscriptionRequired = true,
-                        subscriptionRequiredMessage = "This lesson requires a premium subscription"
+                        subscriptionRequiredMessage = message
                     )
                 }
             } else if (lesson != null) {

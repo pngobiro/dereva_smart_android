@@ -2,7 +2,6 @@ package com.dereva.smart.data.download
 
 import android.content.Context
 import androidx.work.*
-import com.dereva.smart.data.local.dao.ContentDao
 import com.dereva.smart.domain.model.DownloadStatus
 import com.dereva.smart.domain.model.Lesson
 import com.dereva.smart.domain.model.Module
@@ -13,10 +12,10 @@ import java.util.*
 
 /**
  * Manager for handling content downloads from Cloudflare R2
+ * Refactored to remove local database dependency.
  */
 class DownloadManager(
-    private val context: Context,
-    private val contentDao: ContentDao
+    private val context: Context
 ) {
     
     private val workManager = WorkManager.getInstance(context)
@@ -48,6 +47,7 @@ class DownloadManager(
             .setInputData(inputData)
             .addTag("download_${lesson.id}")
             .addTag("module_$moduleId")
+            .addTag("download")
             .build()
         
         workManager.enqueue(downloadRequest)
@@ -61,25 +61,10 @@ class DownloadManager(
     suspend fun downloadModule(
         module: Module,
         lessons: List<Lesson>,
+        userId: String,
         onlyOnWiFi: Boolean = true
     ): List<UUID> {
         val workIds = mutableListOf<UUID>()
-        
-        // Create download record
-        val download = ModuleDownload(
-            id = UUID.randomUUID().toString(),
-            moduleId = module.id,
-            userId = "user123", // TODO: Get from auth
-            status = DownloadStatus.PENDING,
-            progress = 0,
-            downloadedSize = 0,
-            totalSize = module.downloadSize,
-            startedAt = Date(),
-            completedAt = null,
-            errorMessage = null
-        )
-        
-        contentDao.insertModuleDownload(download.toEntity())
         
         // Queue all lessons for download
         lessons.forEach { lesson ->
@@ -104,14 +89,6 @@ class DownloadManager(
      */
     suspend fun cancelModuleDownload(moduleId: String) {
         workManager.cancelAllWorkByTag("module_$moduleId")
-        
-        // Update status in database
-        contentDao.updateModuleDownloadStatus(
-            moduleId = moduleId,
-            status = DownloadStatus.CANCELLED.name,
-            progress = 0,
-            errorMessage = "Cancelled by user"
-        )
     }
     
     /**
@@ -119,13 +96,6 @@ class DownloadManager(
      */
     suspend fun pauseDownload(downloadId: String) {
         workManager.cancelWorkById(UUID.fromString(downloadId))
-        
-        // Update status in database
-        contentDao.updateDownloadStatus(
-            downloadId = downloadId,
-            status = DownloadStatus.PAUSED.name,
-            timestamp = null
-        )
     }
     
     /**
@@ -136,14 +106,6 @@ class DownloadManager(
         lesson: Lesson,
         onlyOnWiFi: Boolean = true
     ): UUID {
-        // Update status to pending
-        contentDao.updateModuleDownloadStatus(
-            moduleId = moduleId,
-            status = DownloadStatus.PENDING.name,
-            progress = 0,
-            errorMessage = null
-        )
-        
         // Start download
         return downloadLesson(moduleId, lesson, onlyOnWiFi)
     }
@@ -174,7 +136,7 @@ class DownloadManager(
      */
     fun isModuleDownloading(moduleId: String): Flow<Boolean> {
         return getModuleDownloadProgress(moduleId).map { workInfos ->
-            workInfos.any { it.state == WorkInfo.State.RUNNING }
+            workInfos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
         }
     }
     
@@ -207,13 +169,6 @@ class DownloadManager(
         if (downloadDir.exists()) {
             downloadDir.deleteRecursively()
         }
-        
-        // Update database
-        contentDao.deleteModuleDownload(moduleId)
-        contentDao.updateModuleDownloadedStatus(moduleId, false)
-        
-        // Clear lesson local paths
-        contentDao.clearModuleLessonPaths(moduleId)
     }
     
     /**
@@ -235,50 +190,6 @@ class DownloadManager(
      * Clean up failed downloads
      */
     suspend fun cleanupFailedDownloads() {
-        val failedDownloads = contentDao.getFailedDownloads()
-        
-        failedDownloads.forEach { download ->
-            val downloadDir = context.filesDir.resolve("downloads/modules/${download.moduleId}")
-            if (downloadDir.exists()) {
-                downloadDir.deleteRecursively()
-            }
-            contentDao.deleteModuleDownload(download.moduleId)
-        }
+        // No-op without DAO for now, or could iterate files
     }
-    
-    /**
-     * Retry failed download
-     */
-    suspend fun retryFailedDownload(
-        moduleId: String,
-        lesson: Lesson,
-        onlyOnWiFi: Boolean = true
-    ): UUID {
-        // Clear error status
-        contentDao.updateModuleDownloadStatus(
-            moduleId = moduleId,
-            status = DownloadStatus.PENDING.name,
-            progress = 0,
-            errorMessage = null
-        )
-        
-        // Start download
-        return downloadLesson(moduleId, lesson, onlyOnWiFi)
-    }
-}
-
-// Extension function to convert ModuleDownload to Entity
-private fun ModuleDownload.toEntity(): com.dereva.smart.data.local.entity.ModuleDownloadEntity {
-    return com.dereva.smart.data.local.entity.ModuleDownloadEntity(
-        id = id,
-        moduleId = moduleId,
-        userId = userId,
-        status = status.name,
-        progress = progress,
-        downloadedSize = downloadedSize,
-        totalSize = totalSize,
-        startedAt = startedAt.time,
-        completedAt = completedAt?.time,
-        errorMessage = errorMessage
-    )
 }

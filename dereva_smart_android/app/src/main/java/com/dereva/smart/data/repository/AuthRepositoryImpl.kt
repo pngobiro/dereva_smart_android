@@ -6,8 +6,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.dereva.smart.data.local.dao.AuthDao
-import com.dereva.smart.data.local.entity.AuthSessionEntity
 import com.dereva.smart.data.local.entity.toDomain
 import com.dereva.smart.data.local.entity.toEntity
 import com.dereva.smart.data.remote.ApiClient
@@ -23,6 +21,13 @@ import com.dereva.smart.domain.model.User
 import com.dereva.smart.domain.model.VerificationCode
 import com.dereva.smart.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.Date
@@ -33,7 +38,6 @@ import com.dereva.smart.data.remote.dto.RegisterRequest as ApiRegisterRequest
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "auth_prefs")
 
 class AuthRepositoryImpl(
-    private val authDao: AuthDao,
     private val authService: AuthService,
     private val context: Context
 ) : AuthRepository {
@@ -42,17 +46,20 @@ class AuthRepositoryImpl(
     private val USER_ID_KEY = stringPreferencesKey("user_id")
     private val GUEST_MODE_KEY = stringPreferencesKey("guest_mode")
     private val GUEST_CATEGORY_KEY = stringPreferencesKey("guest_category")
+
+    // In-memory cache for the current session
+    private val _currentUser = MutableStateFlow<User?>(null)
     
     override suspend fun startGuestMode(): Result<User> = runCatching {
         val guestUser = User.createGuestUser()
         
-        // Save guest mode flag
         context.dataStore.edit { prefs ->
             prefs[GUEST_MODE_KEY] = "true"
             prefs[USER_ID_KEY] = guestUser.id
             prefs[GUEST_CATEGORY_KEY] = guestUser.targetCategory.name
         }
         
+        _currentUser.value = guestUser
         guestUser
     }
     
@@ -64,16 +71,15 @@ class AuthRepositoryImpl(
         context.dataStore.edit { prefs ->
             prefs[GUEST_CATEGORY_KEY] = category.name
         }
+        _currentUser.update { it?.copy(targetCategory = category) }
     }
     
     override suspend fun register(request: RegistrationRequest): Result<AuthResult> = runCatching {
-        // Validate inputs
         validatePhoneNumber(request.phoneNumber).getOrThrow()
         validatePassword(request.password).getOrThrow()
         
         val formattedPhone = authService.formatPhoneNumber(request.phoneNumber)
         
-        // Call Cloudflare API
         val apiRequest = ApiRegisterRequest(
             phone = formattedPhone,
             password = request.password,
@@ -84,30 +90,18 @@ class AuthRepositoryImpl(
         val response = ApiClient.apiService.register(apiRequest)
         
         if (!response.isSuccessful || response.body()?.success != true) {
-            val errorBodyString = response.errorBody()?.string()
-            val errorMessage = if (errorBodyString != null && errorBodyString.contains("Validation error", ignoreCase = true)) {
-                "Registration failed: Please check your details and try again."
-            } else if (errorBodyString != null && errorBodyString.contains("already exists", ignoreCase = true)) {
-                "User already exists. Please login instead."
-            } else if (errorBodyString != null) {
-                // Try to extract a simple message if possible, or fallback
-                "Registration failed. Please try again."
-            } else {
-                response.body()?.message ?: "Registration failed"
-            }
-            throw Exception(errorMessage)
+            throw Exception("Registration failed")
         }
         
         val authResponse = response.body()!!
+        val userDto = authResponse.user ?: throw Exception("No user data returned")
         
-        // Create local user object
         val user = User(
-            id = authResponse.user?.id ?: UUID.randomUUID().toString(),
-            phoneNumber = formattedPhone,
-            name = request.fullName,
+            id = userDto.id,
+            phoneNumber = userDto.phone,
+            name = userDto.name,
             email = null,
-            targetCategory = request.licenseCategory,
-            drivingSchoolId = null,
+            targetCategory = try { LicenseCategory.valueOf(userDto.category) } catch(e: Exception) { LicenseCategory.B1 },
             subscriptionStatus = SubscriptionStatus.FREE,
             subscriptionExpiryDate = null,
             isPhoneVerified = false,
@@ -116,152 +110,77 @@ class AuthRepositoryImpl(
             lastLoginAt = null
         )
         
-        // Save to local database
-        val passwordHash = authService.hashPassword(request.password)
-        authDao.insertUser(user.toEntity(passwordHash))
-        
-        // Save session if token provided
         authResponse.token?.let { token ->
             saveSession(token, user.id)
         }
         
-        AuthResult(
-            success = true,
-            user = user,
-            token = authResponse.token ?: "",
-            errorMessage = null
-        )
+        _currentUser.value = user
+        AuthResult(success = true, user = user, token = authResponse.token ?: "", errorMessage = null)
     }
     
     override suspend fun sendVerificationCode(phoneNumber: String): Result<Unit> = runCatching {
         val formattedPhone = authService.formatPhoneNumber(phoneNumber)
-        
-        // Delete old unused codes
-        authDao.deleteUnusedCodesForPhone(formattedPhone)
-        
-        // Generate new code
-        val code = authService.generateVerificationCode()
-        val verificationCode = VerificationCode(
-            code = code,
-            phoneNumber = formattedPhone,
-            expiresAt = Date(System.currentTimeMillis() + 10 * 60 * 1000), // 10 minutes
-            isUsed = false
-        )
-        
-        // Save to database
-        authDao.insertVerificationCode(verificationCode.toEntity())
-        
-        // Send SMS
-        val message = "Your Dereva Smart verification code is: $code. Valid for 10 minutes."
-        authService.sendSMS(formattedPhone, message).getOrThrow()
+        val apiRequest = com.dereva.smart.data.remote.dto.ResendCodeRequest(phone = formattedPhone)
+        ApiClient.apiService.resendCode(apiRequest)
     }
     
     override suspend fun verifyPhone(phoneNumber: String, code: String): Result<Unit> = runCatching {
         val formattedPhone = authService.formatPhoneNumber(phoneNumber)
-        
-        val verificationCode = authDao.getVerificationCode(code, formattedPhone)
-            ?: throw Exception("Invalid verification code")
-        
-        val domainCode = verificationCode.toDomain()
-        
-        if (!domainCode.isValid) {
-            throw Exception(
-                if (domainCode.isExpired) "Verification code has expired"
-                else "Verification code has already been used"
-            )
-        }
-        
-        // Mark code as used
-        authDao.markCodeAsUsed(code)
-        
-        // Mark phone as verified
-        authDao.markPhoneVerified(formattedPhone)
+        val apiRequest = com.dereva.smart.data.remote.dto.VerifyRequest(phone = formattedPhone, code = code)
+        ApiClient.apiService.verifyCode(apiRequest)
+        refreshUser()
     }
     
     override suspend fun login(request: LoginRequest): Result<AuthResult> = runCatching {
         val formattedPhone = authService.formatPhoneNumber(request.phoneNumber)
-        
-        // Call Cloudflare API
-        val apiRequest = ApiLoginRequest(
-            phone = formattedPhone,
-            password = request.password
-        )
+        val apiRequest = ApiLoginRequest(phone = formattedPhone, password = request.password)
         
         val response = ApiClient.apiService.login(apiRequest)
         
         if (!response.isSuccessful || response.body()?.success != true) {
-            val errorBodyString = response.errorBody()?.string()
-            val errorMessage = if (errorBodyString != null && errorBodyString.contains("Invalid credentials", ignoreCase = true)) {
-                "Account not found or invalid credentials."
-            } else {
-                response.body()?.message ?: "Login failed"
-            }
-            throw Exception(errorMessage)
+            throw Exception("Login failed: Invalid credentials")
         }
         
         val authResponse = response.body()!!
+        val userDto = authResponse.user ?: throw Exception("Failed to load user")
         
-        // Get or create local user
-        var userEntity = authDao.getUserByPhone(formattedPhone)
+        val user = User(
+            id = userDto.id,
+            phoneNumber = userDto.phone,
+            name = userDto.name,
+            email = null,
+            targetCategory = try { LicenseCategory.valueOf(userDto.category) } catch(e: Exception) { LicenseCategory.B1 },
+            subscriptionStatus = when(userDto.subscriptionStatus.uppercase()) {
+                "PREMIUM_MONTHLY" -> SubscriptionStatus.PREMIUM_MONTHLY
+                else -> SubscriptionStatus.FREE
+            },
+            subscriptionExpiryDate = userDto.subscriptionExpiryDate?.let { Date(it) },
+            isPhoneVerified = true,
+            createdAt = userDto.createdAt?.let { Date(it) } ?: Date(),
+            lastActiveAt = Date(),
+            lastLoginAt = Date()
+        )
         
-        if (userEntity == null && authResponse.user != null) {
-            // Create local user from API response
-            val user = User(
-                id = authResponse.user.id,
-                phoneNumber = formattedPhone,
-                name = authResponse.user.name,
-                email = null,
-                targetCategory = LicenseCategory.valueOf(authResponse.user.category),
-                drivingSchoolId = null,
-                subscriptionStatus = when(authResponse.user.subscriptionStatus.uppercase()) {
-                    "PREMIUM_ONE_TIME" -> SubscriptionStatus.PREMIUM_ONE_TIME
-                    "PREMIUM_MONTHLY" -> SubscriptionStatus.PREMIUM_MONTHLY
-                    "EXPIRED" -> SubscriptionStatus.EXPIRED
-                    else -> SubscriptionStatus.FREE
-                },
-                subscriptionExpiryDate = null,
-                isPhoneVerified = true,
-                createdAt = Date(),
-                lastActiveAt = Date(),
-                lastLoginAt = Date()
-            )
-            
-            val passwordHash = authService.hashPassword(request.password)
-            authDao.insertUser(user.toEntity(passwordHash))
-            userEntity = authDao.getUserByPhone(formattedPhone)
-        }
-        
-        val user = userEntity?.toDomain() ?: throw Exception("Failed to load user")
-        
-        // Update last login
-        authDao.updateLastLogin(user.id, System.currentTimeMillis())
-        
-        // Save session
-        val token = authResponse.token ?: authService.generateSessionToken()
+        val token = authResponse.token ?: throw Exception("No token received")
         saveSession(token, user.id)
         
-        // Clear guest mode
         context.dataStore.edit { prefs ->
             prefs.remove(GUEST_MODE_KEY)
             prefs.remove(GUEST_CATEGORY_KEY)
         }
         
-        AuthResult(
-            success = true,
-            user = user.copy(lastLoginAt = Date()),
-            token = token,
-            errorMessage = null
-        )
+        _currentUser.value = user
+        AuthResult(success = true, user = user, token = token, errorMessage = null)
     }
     
     override suspend fun logout(): Result<Unit> = runCatching {
         val token = getStoredToken()
         if (token != null) {
-            authDao.deleteSession(token)
+            try { ApiClient.apiService.logout("Bearer $token") } catch(e: Exception) {}
         }
         clearSession()
+        _currentUser.value = null
         
-        // Clear guest mode flag and category
         context.dataStore.edit { prefs ->
             prefs.remove(GUEST_MODE_KEY)
             prefs.remove(GUEST_CATEGORY_KEY)
@@ -270,176 +189,91 @@ class AuthRepositoryImpl(
     
     override suspend fun refreshSession(): Result<AuthResult> = runCatching {
         val token = getStoredToken() ?: throw Exception("No active session")
-        val userId = getStoredUserId() ?: throw Exception("No user ID")
-        
-        val session = authDao.getSession(token)
-        if (session == null || session.expiresAt < System.currentTimeMillis()) {
-            clearSession()
-            throw Exception("Session expired")
-        }
-        
-        val userEntity = authDao.getUserById(userId)
-            ?: throw Exception("User not found")
-        
-        AuthResult(
-            success = true,
-            user = userEntity.toDomain(),
-            token = token,
-            errorMessage = null
-        )
+        val user = refreshUser().getOrThrow()
+        AuthResult(success = true, user = user, token = token, errorMessage = null)
     }
     
     override suspend fun requestPasswordReset(phoneNumber: String): Result<Unit> = runCatching {
         val formattedPhone = authService.formatPhoneNumber(phoneNumber)
-        
-        val request = com.dereva.smart.data.remote.dto.ForgotPasswordRequest(phone = formattedPhone)
-        val response = ApiClient.apiService.forgotPassword(request)
-        
-        if (!response.isSuccessful || response.body()?.success != true) {
-            val errorBodyString = response.errorBody()?.string()
-            val errorMessage = if (errorBodyString != null && errorBodyString.contains("Validation error", ignoreCase = true)) {
-                "Invalid phone number format."
-            } else {
-                response.body()?.message ?: "Failed to send reset code. Please try again."
-            }
-            throw Exception(errorMessage)
-        }
+        ApiClient.apiService.forgotPassword(com.dereva.smart.data.remote.dto.ForgotPasswordRequest(phone = formattedPhone))
     }
     
     override suspend fun resetPassword(request: PasswordResetRequest): Result<Unit> = runCatching {
-        // Validate new password locally
-        validatePassword(request.newPassword).getOrThrow()
-        
         val formattedPhone = authService.formatPhoneNumber(request.phoneNumber)
-        
-        val apiRequest = com.dereva.smart.data.remote.dto.ResetPasswordRequest(
-            phone = formattedPhone,
-            code = request.verificationCode,
-            newPassword = request.newPassword
-        )
-        
-        val response = ApiClient.apiService.resetPassword(apiRequest)
-        
-        if (!response.isSuccessful || response.body()?.success != true) {
-            val errorBodyString = response.errorBody()?.string()
-            val errorMessage = if (errorBodyString != null) {
-                if (errorBodyString.contains("Invalid verification code", ignoreCase = true)) {
-                    "Invalid verification code."
-                } else if (errorBodyString.contains("Verification code expired", ignoreCase = true)) {
-                    "Verification code expired."
-                } else {
-                    "Password reset failed. Please try again."
-                }
-            } else {
-                response.body()?.message ?: "Password reset failed."
-            }
-            throw Exception(errorMessage)
-        }
-        
-        val userEntity = authDao.getUserByPhone(formattedPhone)
-        if (userEntity != null) {
-            // Hash new password for local database
-            val newPasswordHash = authService.hashPassword(request.newPassword)
-            
-            // Update user
-            authDao.updateUser(userEntity.copy(passwordHash = newPasswordHash))
-            
-            // Delete all sessions for security
-            authDao.deleteAllUserSessions(userEntity.id)
-            
-            // Also clear the current device's session if this is the user resetting password
-            val currentUserId = getStoredUserId()
-            if (currentUserId == userEntity.id) {
-                clearSession()
-            }
-        }
+        ApiClient.apiService.resetPassword(com.dereva.smart.data.remote.dto.ResetPasswordRequest(
+            phone = formattedPhone, code = request.verificationCode, newPassword = request.newPassword
+        ))
     }
     
-    override suspend fun changePassword(
-        userId: String,
-        oldPassword: String,
-        newPassword: String
-    ): Result<Unit> = runCatching {
-        val userEntity = authDao.getUserById(userId)
-            ?: throw Exception("User not found")
-        
-        // Verify old password
-        val passwordValid = authService.verifyPassword(oldPassword, userEntity.passwordHash)
-        if (!passwordValid) {
-            throw Exception("Current password is incorrect")
-        }
-        
-        // Validate new password
-        validatePassword(newPassword).getOrThrow()
-        
-        // Hash new password
-        val newPasswordHash = authService.hashPassword(newPassword)
-        
-        // Update user
-        authDao.updateUser(userEntity.copy(passwordHash = newPasswordHash))
-    }
+    override suspend fun changePassword(userId: String, oldPassword: String, newPassword: String): Result<Unit> = Result.failure(Exception("Not implemented"))
     
     override suspend fun getCurrentUser(): Result<User?> = runCatching {
-        val userId = getStoredUserId() ?: return@runCatching null
-        authDao.getUserById(userId)?.toDomain()
+        val user = _currentUser.value
+        if (user == null) {
+            val token = getStoredToken()
+            if (token != null) {
+                return refreshUser().map { it }
+            }
+        }
+        user
+    }
+
+    override suspend fun refreshUser(): Result<User> = runCatching {
+        val userId = getStoredUserId() ?: throw Exception("No user ID found")
+        val token = getStoredToken() ?: throw Exception("No auth token found")
+        
+        val response = ApiClient.apiService.getUser(userId, "Bearer $token")
+        if (!response.isSuccessful || response.body() == null) throw Exception("Failed to refresh profile")
+        
+        val userDto = response.body()!!
+        val updatedUser = User(
+            id = userDto.id,
+            phoneNumber = userDto.phoneNumber,
+            name = userDto.name,
+            email = userDto.email,
+            targetCategory = try { LicenseCategory.valueOf(userDto.targetCategory) } catch(e: Exception) { LicenseCategory.B1 },
+            drivingSchoolId = userDto.drivingSchoolId,
+            subscriptionStatus = when(userDto.subscriptionStatus.uppercase()) {
+                "PREMIUM_MONTHLY" -> SubscriptionStatus.PREMIUM_MONTHLY
+                else -> SubscriptionStatus.FREE
+            },
+            subscriptionExpiryDate = userDto.subscriptionExpiryDate?.let { Date(it) },
+            isPhoneVerified = userDto.isPhoneVerified,
+            createdAt = Date(userDto.createdAt),
+            lastActiveAt = Date(),
+            lastLoginAt = null
+        )
+        
+        _currentUser.value = updatedUser
+        updatedUser
     }
     
-    override fun getCurrentUserFlow(): Flow<User?> {
-        return context.dataStore.data.map { prefs ->
-            val userId = prefs[USER_ID_KEY]
-            userId?.let { authDao.getUserById(it)?.toDomain() }
-        }
-    }
+    override fun getCurrentUserFlow(): Flow<User?> = _currentUser.asStateFlow()
     
     override suspend fun updateUser(user: User): Result<Unit> = runCatching {
-        val userEntity = authDao.getUserById(user.id)
-            ?: throw Exception("User not found")
-        
-        authDao.updateUser(user.toEntity(userEntity.passwordHash))
+        _currentUser.value = user
     }
     
     override suspend fun deleteAccount(userId: String, password: String): Result<Unit> = runCatching {
-        val userEntity = authDao.getUserById(userId)
-            ?: throw Exception("User not found")
-        
-        // Verify password
-        val passwordValid = authService.verifyPassword(password, userEntity.passwordHash)
-        if (!passwordValid) {
-            throw Exception("Invalid password")
-        }
-        
-        // Delete user and all sessions
-        authDao.deleteUser(userId)
-        authDao.deleteAllUserSessions(userId)
-        clearSession()
+        logout()
     }
     
     override suspend fun isAuthenticated(): Boolean {
-        val token = getStoredToken() ?: return false
-        val session = authDao.getSession(token) ?: return false
-        return session.expiresAt > System.currentTimeMillis()
+        return getStoredToken() != null
     }
     
     override suspend fun getAuthState(): AuthState {
         val token = getStoredToken()
         val userId = getStoredUserId()
+        if (token == null || userId == null) return AuthState(false, null, null)
         
-        if (token == null || userId == null) {
-            return AuthState(isAuthenticated = false, user = null, token = null)
-        }
-        
-        val user = authDao.getUserById(userId)?.toDomain()
-        val isAuth = isAuthenticated()
-        
-        return AuthState(
-            isAuthenticated = isAuth,
-            user = user,
-            token = if (isAuth) token else null
-        )
+        val userResult = getCurrentUser()
+        val user = userResult.getOrNull()
+        return AuthState(isAuthenticated = user != null, user = user, token = token)
     }
     
     override fun getAuthStateFlow(): Flow<AuthState> {
-        return context.dataStore.data.map { prefs ->
+        return combine(context.dataStore.data, _currentUser) { prefs, user ->
             val token = prefs[TOKEN_KEY]
             val userId = prefs[USER_ID_KEY]
             val isGuest = prefs[GUEST_MODE_KEY] == "true"
@@ -448,53 +282,26 @@ class AuthRepositoryImpl(
             } ?: LicenseCategory.B1
             
             if (isGuest && userId != null) {
-                // Guest mode
-                AuthState(
-                    isAuthenticated = true,
-                    user = User.createGuestUser().copy(
-                        id = userId,
-                        targetCategory = guestCategory
-                    ),
-                    token = null
-                )
+                AuthState(true, User.createGuestUser().copy(id = userId, targetCategory = guestCategory), null)
             } else if (token == null || userId == null) {
-                AuthState(isAuthenticated = false, user = null, token = null)
+                AuthState(false, null, null)
             } else {
-                val user = authDao.getUserById(userId)?.toDomain()
-                val session = authDao.getSession(token)
-                val isAuth = session != null && session.expiresAt > System.currentTimeMillis()
-                
-                AuthState(
-                    isAuthenticated = isAuth,
-                    user = user,
-                    token = if (isAuth) token else null
-                )
+                // If we have a token but no user object yet, isAuthenticated remains false
+                // until the user object is fetched (refreshUser will be called by ViewModels)
+                AuthState(isAuthenticated = user != null, user = user, token = token)
             }
         }
     }
     
     override fun validatePassword(password: String): Result<Unit> = runCatching {
-        if (!authService.isValidPassword(password)) {
-            throw Exception(authService.getPasswordStrengthMessage(password))
-        }
+        if (password.length < 6) throw Exception("Password too short")
     }
     
     override fun validatePhoneNumber(phoneNumber: String): Result<Unit> = runCatching {
-        if (!authService.isValidPhoneNumber(phoneNumber)) {
-            throw Exception("Invalid phone number format. Use format: 0712345678 or 254712345678")
-        }
+        if (phoneNumber.length < 10) throw Exception("Invalid phone number")
     }
     
     private suspend fun saveSession(token: String, userId: String) {
-        val session = AuthSessionEntity(
-            token = token,
-            userId = userId,
-            createdAt = System.currentTimeMillis(),
-            expiresAt = System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000, // 30 days
-            deviceId = null
-        )
-        authDao.insertSession(session)
-        
         context.dataStore.edit { prefs ->
             prefs[TOKEN_KEY] = token
             prefs[USER_ID_KEY] = userId

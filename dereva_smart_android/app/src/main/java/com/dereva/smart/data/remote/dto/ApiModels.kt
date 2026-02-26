@@ -67,30 +67,42 @@ data class AuthResponse(
 
 data class UserData(
     val id: String,
-    @SerializedName("phoneNumber", alternate = ["phone"])
+    @SerializedName("phone_number", alternate = ["phoneNumber", "phone"])
     val phone: String,
     val name: String,
-    @SerializedName("targetCategory", alternate = ["category"])
+    @SerializedName("target_category", alternate = ["targetCategory", "category"])
     val category: String,
-    @SerializedName("subscriptionStatus", alternate = ["subscription_status"])
+    @SerializedName("subscription_status", alternate = ["subscriptionStatus"])
     val subscriptionStatus: String,
-    @SerializedName("subscriptionExpiresAt", alternate = ["subscription_expires_at"])
-    val subscriptionExpiresAt: String? = null,
-    @SerializedName("createdAt", alternate = ["created_at"])
-    val createdAt: String? = null
+    @SerializedName("subscription_expiry_date", alternate = ["subscriptionExpiresAt", "subscriptionExpiryDate"])
+    val subscriptionExpiryDate: Long? = null,
+    @SerializedName("created_at", alternate = ["createdAt"])
+    val createdAt: Long? = null
 )
 
 // User
 data class UserResponse(
     val id: String,
-    val phone: String,
+    @SerializedName("phone_number")
+    val phoneNumber: String,
     val name: String,
-    val category: String,
+    val email: String? = null,
+    @SerializedName("target_category")
+    val targetCategory: String,
+    @SerializedName("driving_school_id")
+    val drivingSchoolId: String? = null,
     @SerializedName("subscription_status")
     val subscriptionStatus: String,
-    @SerializedName("subscription_expires_at")
-    val subscriptionExpiresAt: String? = null
-)
+    @SerializedName("subscription_expiry_date")
+    val subscriptionExpiryDate: Long? = null,
+    @SerializedName("is_phone_verified")
+    val isPhoneVerifiedInt: Int = 0,
+    @SerializedName("created_at")
+    val createdAt: Long = 0
+) {
+    val isPhoneVerified: Boolean
+        get() = isPhoneVerifiedInt == 1
+}
 
 // Content
 data class ModuleResponse(
@@ -103,8 +115,12 @@ data class ModuleResponse(
     val orderIndex: Int,
     @SerializedName("requires_subscription")
     val requiresSubscriptionInt: Int,
-    @SerializedName("icon_url")
-    val iconUrl: String? = null
+    @SerializedName("thumbnail_url")
+    val iconUrl: String? = null,
+    @SerializedName("estimated_duration")
+    val estimatedDuration: Int = 0,
+    @SerializedName("lesson_count")
+    val lessonCount: Int = 0
 ) {
     val requiresSubscription: Boolean
         get() = requiresSubscriptionInt == 1
@@ -223,7 +239,9 @@ data class CloudflarePaymentStatus(
     @SerializedName("mpesa_receipt_number")
     val mpesaReceiptNumber: String?,
     @SerializedName("payment_type")
-    val paymentType: String
+    val paymentType: String,
+    @SerializedName("completed_at")
+    val completedAt: Long? = null
 )
 
 // Schools

@@ -84,7 +84,7 @@ fun PaymentRequestEntity.toDomain(): PaymentRequest {
         userId = userId,
         amount = amount,
         phoneNumber = phoneNumber,
-        subscriptionTier = SubscriptionTier.valueOf(subscriptionTier),
+        subscriptionTier = try { SubscriptionTier.valueOf(subscriptionTier) } catch (e: Exception) { SubscriptionTier.FREE },
         promoCode = promoCode,
         referralCode = referralCode,
         schoolId = schoolId,
@@ -142,7 +142,7 @@ fun UserSubscriptionEntity.toDomain(): UserSubscription {
     return UserSubscription(
         id = id,
         userId = userId,
-        tier = SubscriptionTier.valueOf(tier),
+        tier = try { SubscriptionTier.valueOf(tier) } catch (e: Exception) { SubscriptionTier.MONTHLY },
         startDate = Date(startDate),
         endDate = endDate?.let { Date(it) },
         isActive = isActive,

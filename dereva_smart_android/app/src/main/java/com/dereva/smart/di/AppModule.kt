@@ -35,27 +35,6 @@ import org.koin.dsl.module
 
 val appModule = module {
     
-    // Database
-    single {
-        Room.databaseBuilder(
-            androidContext(),
-            DerevaDatabase::class.java,
-            DerevaDatabase.DATABASE_NAME
-        )
-            .fallbackToDestructiveMigration()
-            .build()
-    }
-    
-    // DAOs
-    single { get<DerevaDatabase>().authDao() }
-    single { get<DerevaDatabase>().questionDao() }
-    single { get<DerevaDatabase>().mockTestDao() }
-    single { get<DerevaDatabase>().progressDao() }
-    single { get<DerevaDatabase>().tutorDao() }
-    single { get<DerevaDatabase>().schoolDao() }
-    single { get<DerevaDatabase>().paymentDao() }
-    single { get<DerevaDatabase>().contentDao() }
-    
     // Services
     single { AuthService(context = androidContext()) }
     single { ApiClient.apiService }
@@ -63,60 +42,52 @@ val appModule = module {
     single { MpesaService(context = androidContext()) }
     single { CloudflareR2Service(context = androidContext()) }
     
-    // Download Manager
-    single { DownloadManager(context = androidContext(), contentDao = get()) }
+    // Download Manager (Will need update to not use contentDao)
+    single { DownloadManager(context = androidContext()) }
     
     // Repositories
     single<AuthRepository> {
         AuthRepositoryImpl(
-            authDao = get(),
             authService = get(),
             context = androidContext()
         )
     }
     
-    // Repositories
     single<MockTestRepository> {
         MockTestRepositoryImpl(
-            questionDao = get(),
-            mockTestDao = get(),
             apiService = get()
         )
     }
     
     single<ProgressRepository> {
         ProgressRepositoryImpl(
-            progressDao = get()
+            apiService = get()
         )
     }
     
     single<AITutorRepository> {
         AITutorRepositoryImpl(
-            tutorDao = get(),
             geminiService = get()
         )
     }
     
     single<SchoolRepository> {
         SchoolRepositoryImpl(
-            schoolDao = get(),
             progressRepository = get(),
-            mockTestRepository = get()
+            mockTestRepository = get(),
+            apiService = get()
         )
     }
     
     single<PaymentRepository> {
         PaymentRepositoryImpl(
             context = androidContext(),
-            paymentDao = get(),
-            mpesaService = get(),
             apiService = get()
         )
     }
     
     single<ContentRepository> {
         ContentRepositoryImpl(
-            contentDao = get(),
             downloadManager = get(),
             apiService = get()
         )
@@ -128,6 +99,6 @@ val appModule = module {
     viewModel { ProgressViewModel(progressRepository = get(), mockTestRepository = get()) }
     viewModel { TutorViewModel(repository = get()) }
     viewModel { SchoolViewModel(repository = get()) }
-    viewModel { (userId: String) -> PaymentViewModel(paymentRepository = get(), userId = userId) }
+    viewModel { (userId: String) -> PaymentViewModel(paymentRepository = get(), authRepository = get(), userId = userId) }
     viewModel { (userId: String) -> ContentViewModel(repository = get(), userId = userId) }
 }

@@ -9,7 +9,7 @@ enum class LicenseCategory {
 }
 
 enum class SubscriptionStatus {
-    FREE, PREMIUM_ONE_TIME, PREMIUM_MONTHLY, EXPIRED
+    FREE, PREMIUM_MONTHLY
 }
 
 @Parcelize
@@ -30,28 +30,24 @@ data class User(
 ) : Parcelable {
     
     val isPremium: Boolean
-        get() = subscriptionStatus == SubscriptionStatus.PREMIUM_ONE_TIME ||
-                subscriptionStatus == SubscriptionStatus.PREMIUM_MONTHLY
+        get() = subscriptionStatus == SubscriptionStatus.PREMIUM_MONTHLY
     
     val isSubscriptionActive: Boolean
         get() {
-            if (subscriptionStatus == SubscriptionStatus.FREE ||
-                subscriptionStatus == SubscriptionStatus.EXPIRED) {
-                return false
-            }
-            if (subscriptionStatus == SubscriptionStatus.PREMIUM_ONE_TIME) {
-                return true
-            }
-            return subscriptionExpiryDate?.let { Date().before(it) } ?: false
+            if (subscriptionStatus != SubscriptionStatus.PREMIUM_MONTHLY) return false
+            // Trust status if date is missing, otherwise check date
+            return subscriptionExpiryDate?.let { Date().before(it) } ?: true
         }
     
     val licenseCategory: String
         get() = targetCategory.name
     
     companion object {
+        private const val GUEST_USER_ID = "guest_user"
+        
         fun createGuestUser(): User {
             return User(
-                id = "guest_${System.currentTimeMillis()}",
+                id = GUEST_USER_ID,
                 phoneNumber = "",
                 name = "Guest User",
                 email = null,

@@ -50,7 +50,7 @@
 
         <activity
             android:name=".ui.payment.MpesaPaymentActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/Theme.App.Translucent"
             android:exported="false" />
             
     </application>

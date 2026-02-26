@@ -8,6 +8,16 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.navArgument
 import com.dereva.smart.domain.model.LicenseCategory
 import com.dereva.smart.ui.screens.auth.AuthViewModel
@@ -66,7 +76,7 @@ fun DerevaNavHost() {
     // Determine start destination based on user state
     val startDestination = when {
         currentUser == null -> Screen.CategorySelection.route
-        currentUser.isGuestMode && currentUser.targetCategory == LicenseCategory.B1 -> Screen.CategorySelection.route
+        currentUser.isGuestMode && currentUser.targetCategory == LicenseCategory.B1 && currentUser.name == "Guest User" -> Screen.CategorySelection.route
         else -> Screen.Home.route
     }
     
@@ -76,9 +86,21 @@ fun DerevaNavHost() {
     ) {
         // Category Selection Screen
         composable(Screen.CategorySelection.route) {
+            val authViewModel: AuthViewModel = koinViewModel()
+            val authState by authViewModel.uiState.collectAsState()
+            
+            // Start guest mode if no user exists
+            LaunchedEffect(Unit) {
+                if (authState.currentUser == null) {
+                    authViewModel.startGuestMode()
+                }
+            }
+            
             CategorySelectionScreen(
                 onCategorySelected = { category ->
+                    // Update guest category
                     authViewModel.updateGuestCategory(category)
+                    // Navigate to home
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.CategorySelection.route) { inclusive = true }
                     }
@@ -147,18 +169,28 @@ fun DerevaNavHost() {
         
         composable(Screen.MockTest.route) {
             val mockTestViewModel: MockTestViewModel = koinViewModel()
-            val authState by authViewModel.uiState.collectAsState()
+            val user = authState.currentUser
             
-            LaunchedEffect(authState.currentUser) {
-                authState.currentUser?.let { user ->
-                    mockTestViewModel.setUserCategory(user.targetCategory.name)
+            LaunchedEffect(user) {
+                user?.let {
+                    mockTestViewModel.setUserCategory(it.targetCategory.name)
                 }
             }
             
-            MockTestScreen(
-                navController = navController,
-                viewModel = mockTestViewModel
-            )
+            if (user?.isSubscriptionActive == true) {
+                MockTestScreen(
+                    navController = navController,
+                    viewModel = mockTestViewModel
+                )
+            } else {
+                LaunchedEffect(Unit) {
+                    if (user?.isGuestMode == true) {
+                        navController.navigate(Screen.Register.route)
+                    } else {
+                        navController.navigate(Screen.Payment.route)
+                    }
+                }
+            }
         }
         
         composable(Screen.Progress.route) {
@@ -166,7 +198,18 @@ fun DerevaNavHost() {
         }
         
         composable(Screen.Tutor.route) {
-            TutorScreen(navController = navController)
+            val user = authState.currentUser
+            if (user?.isSubscriptionActive == true) {
+                TutorScreen(navController = navController)
+            } else {
+                LaunchedEffect(Unit) {
+                    if (user?.isGuestMode == true) {
+                        navController.navigate(Screen.Register.route)
+                    } else {
+                        navController.navigate(Screen.Payment.route)
+                    }
+                }
+            }
         }
         
         composable(Screen.School.route) {
@@ -174,19 +217,41 @@ fun DerevaNavHost() {
         }
         
         composable(Screen.Payment.route) {
-            val viewModel: PaymentViewModel = koinViewModel { parametersOf("user123") }
+            val viewModel: PaymentViewModel = koinViewModel { parametersOf(currentUser?.id ?: "guest") }
             PaymentScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
         
+        composable(Screen.Simulation.route) {
+            val user = authState.currentUser
+            if (user?.isSubscriptionActive == true) {
+                SimulationScreen(navController = navController)
+            } else {
+                LaunchedEffect(Unit) {
+                    if (user?.isGuestMode == true) {
+                        navController.navigate(Screen.Register.route)
+                    } else {
+                        navController.navigate(Screen.Payment.route)
+                    }
+                }
+            }
+        }
+        
         composable(Screen.ModuleList.route) {
-            val viewModel: ContentViewModel = koinViewModel { parametersOf("user123") }
-            val authState by authViewModel.uiState.collectAsState()
+            val viewModel: ContentViewModel = koinViewModel { parametersOf(currentUser?.id ?: "guest") }
             
-            LaunchedEffect(authState.currentUser) {
-                viewModel.setCurrentUser(authState.currentUser)
+            // Ensure guest user exists if no user
+            LaunchedEffect(currentUser) {
+                if (currentUser == null) {
+                    authViewModel.startGuestMode()
+                }
+            }
+            
+            // Always set current user when it changes
+            LaunchedEffect(currentUser?.id, currentUser?.targetCategory) {
+                viewModel.setCurrentUser(currentUser)
             }
             
             ModuleListScreen(
@@ -200,11 +265,12 @@ fun DerevaNavHost() {
             arguments = listOf(navArgument("moduleId") { type = NavType.StringType })
         ) { backStackEntry ->
             val moduleId = backStackEntry.arguments?.getString("moduleId") ?: ""
-            val viewModel: ContentViewModel = koinViewModel { parametersOf("user123") }
-            val authState by authViewModel.uiState.collectAsState()
+            val viewModel: ContentViewModel = koinViewModel { parametersOf(currentUser?.id ?: "guest") }
+            val currentUserInScreen = authState.currentUser
             
-            LaunchedEffect(authState.currentUser) {
-                viewModel.setCurrentUser(authState.currentUser)
+            // Trigger setCurrentUser whenever authState.currentUser changes
+            LaunchedEffect(currentUserInScreen?.id, currentUserInScreen?.targetCategory) {
+                viewModel.setCurrentUser(currentUserInScreen)
             }
             
             LessonListScreen(
@@ -219,11 +285,12 @@ fun DerevaNavHost() {
             arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
         ) { backStackEntry ->
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            val viewModel: ContentViewModel = koinViewModel { parametersOf("user123") }
-            val authState by authViewModel.uiState.collectAsState()
+            val viewModel: ContentViewModel = koinViewModel { parametersOf(currentUser?.id ?: "guest") }
+            val currentUserInScreen = authState.currentUser
             
-            LaunchedEffect(authState.currentUser) {
-                viewModel.setCurrentUser(authState.currentUser)
+            // Trigger setCurrentUser whenever authState.currentUser changes
+            LaunchedEffect(currentUserInScreen?.id, currentUserInScreen?.targetCategory) {
+                viewModel.setCurrentUser(currentUserInScreen)
             }
             
             LessonViewerScreen(

@@ -36,6 +36,8 @@ interface AuthRepository {
     // User Management
     suspend fun getCurrentUser(): Result<User?>
     
+    suspend fun refreshUser(): Result<User>
+    
     fun getCurrentUserFlow(): Flow<User?>
     
     suspend fun updateUser(user: User): Result<Unit>

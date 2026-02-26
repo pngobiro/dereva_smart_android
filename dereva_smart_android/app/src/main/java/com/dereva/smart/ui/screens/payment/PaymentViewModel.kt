@@ -3,6 +3,7 @@ package com.dereva.smart.ui.screens.payment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dereva.smart.domain.model.*
+import com.dereva.smart.domain.repository.AuthRepository
 import com.dereva.smart.domain.repository.PaymentRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ data class PaymentUiState(
 
 class PaymentViewModel(
     private val paymentRepository: PaymentRepository,
+    private val authRepository: AuthRepository,
     private val userId: String
 ) : ViewModel() {
     
@@ -221,7 +223,7 @@ class PaymentViewModel(
             paymentRepository.pollPaymentStatus(
                 requestId = requestId,
                 checkoutRequestId = checkoutRequestId,
-                maxAttempts = 12,
+                maxAttempts = 24, // 2 minutes
                 delayMillis = 5000
             ).onSuccess { result ->
                 _uiState.update { 
@@ -237,6 +239,7 @@ class PaymentViewModel(
                 }
                 
                 if (result.status == PaymentStatus.COMPLETED) {
+                    authRepository.refreshUser()
                     loadPaymentHistory()
                     loadActiveSubscription()
                 }

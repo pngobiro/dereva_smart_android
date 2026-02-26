@@ -2,6 +2,7 @@ package com.dereva.smart.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,11 +30,25 @@ fun HomeScreen(navController: NavController) {
                 title = {
                     Column {
                         Text("Dereva Smart")
-                        if (currentUser != null && !currentUser.isGuestMode) {
-                            Text(
-                                text = "Hello, ${currentUser.name}",
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                        if (currentUser != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (currentUser.isGuestMode) "Guest Mode" else "Hello, ${currentUser.name}",
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = if (currentUser.isPremium) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.extraSmall
+                                ) {
+                                    Text(
+                                        text = if (currentUser.isPremium) "PREMIUM" else "FREE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        color = if (currentUser.isPremium) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
                         }
                     }
                 },
@@ -42,7 +57,7 @@ fun HomeScreen(navController: NavController) {
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 actions = {
-                    if (currentUser?.isGuestMode == true) {
+                    if (currentUser == null || currentUser.isGuestMode) {
                         TextButton(
                             onClick = { navController.navigate(Screen.Login.route) },
                             colors = ButtonDefaults.textButtonColors(
@@ -57,10 +72,10 @@ fun HomeScreen(navController: NavController) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Login")
                         }
-                    } else if (currentUser != null) {
+                    } else {
                         IconButton(onClick = { authViewModel.logout() }) {
                             Icon(
-                                Icons.Default.ExitToApp,
+                                Icons.AutoMirrored.Filled.ExitToApp,
                                 contentDescription = "Logout",
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
@@ -70,6 +85,7 @@ fun HomeScreen(navController: NavController) {
             )
         }
     ) { paddingValues ->
+        val currentUserVal = currentUser // Create a stable val for smart casting
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -78,8 +94,8 @@ fun HomeScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Guest Mode Banner
-            if (currentUser?.isGuestMode == true) {
+            // Reconciled Status Banner
+            if (currentUserVal?.isPremium == false) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -103,30 +119,45 @@ fun HomeScreen(navController: NavController) {
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Free Trial Mode",
+                                    text = if (currentUserVal.isGuestMode) "Ready to start learning?" else "Upgrade to Premium",
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "Category: ${currentUser.targetCategory.name}",
+                                    text = "Unlock all mock tests, AI tutor, and 3D simulation.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
-                            TextButton(
-                                onClick = { navController.navigate(Screen.Login.route) }
-                            ) {
-                                Text("Login")
-                            }
                         }
                         
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         
-                        OutlinedButton(
-                            onClick = { navController.navigate(Screen.CategorySelection.route) },
-                            modifier = Modifier.fillMaxWidth()
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Change Category")
+                            if (currentUserVal.isGuestMode) {
+                                Button(
+                                    onClick = { navController.navigate(Screen.Register.route) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Create Account")
+                                }
+                            } else {
+                                Button(
+                                    onClick = { navController.navigate(Screen.Payment.route) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Get Premium")
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { navController.navigate(Screen.CategorySelection.route) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Change Category")
+                            }
                         }
                     }
                 }
@@ -192,6 +223,7 @@ fun HomeScreen(navController: NavController) {
                 title = "Subscription",
                 description = "Manage your subscription and payments",
                 icon = Icons.Default.ShoppingCart,
+                status = if (currentUser?.isPremium == true) "Active" else "Upgrade",
                 onClick = { navController.navigate(Screen.Payment.route) }
             )
             
@@ -206,12 +238,14 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeatureCard(
     title: String,
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    status: String? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -238,11 +272,31 @@ fun FeatureCard(
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge
-                )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    
+                    status?.let {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text(
+                                text = it.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,

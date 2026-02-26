@@ -23,6 +23,9 @@ interface DerevaApiService {
     @POST("/api/auth/verify")
     suspend fun verifyCode(@Body request: VerifyRequest): Response<AuthResponse>
     
+    @POST("/api/auth/logout")
+    suspend fun logout(@Header("Authorization") token: String): Response<MessageResponse>
+    
     @POST("/api/auth/resend-code")
     suspend fun resendCode(@Body request: ResendCodeRequest): Response<MessageResponse>
     
@@ -94,6 +97,11 @@ interface DerevaApiService {
     suspend fun getPaymentStatus(
         @Path("paymentId") paymentId: String
     ): retrofit2.Response<CloudflarePaymentStatus>
+    
+    @GET("/api/payments/{userId}")
+    suspend fun getPayments(
+        @Path("userId") userId: String
+    ): retrofit2.Response<List<CloudflarePaymentStatus>>
     
     // Schools
     @GET("/api/schools")

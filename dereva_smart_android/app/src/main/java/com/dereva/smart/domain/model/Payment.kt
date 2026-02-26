@@ -6,7 +6,6 @@ import java.util.Date
 
 enum class SubscriptionTier {
     FREE,           // Limited features
-    ONE_TIME,       // One-time payment for full access
     MONTHLY         // Monthly subscription
 }
 
@@ -26,7 +25,7 @@ data class SubscriptionPlan(
     val price: Double,
     val currency: String = "KES",
     val features: List<String>,
-    val durationDays: Int? = null // null for one-time, 30 for monthly
+    val durationDays: Int? = 30 // 30 for monthly
 ) : Parcelable
 
 @Parcelize

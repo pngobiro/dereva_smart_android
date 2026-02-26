@@ -16,6 +16,9 @@ interface AuthDao {
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: String): UserEntity?
     
+    @Query("SELECT * FROM users WHERE id = :userId")
+    fun getUserByIdFlow(userId: String): Flow<UserEntity?>
+    
     @Query("SELECT * FROM users WHERE phoneNumber = :phoneNumber")
     suspend fun getUserByPhone(phoneNumber: String): UserEntity?
     
