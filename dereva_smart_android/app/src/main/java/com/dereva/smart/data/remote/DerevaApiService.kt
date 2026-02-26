@@ -42,6 +42,13 @@ interface DerevaApiService {
         @Header("Authorization") token: String
     ): Response<UserResponse>
     
+    @PUT("/api/users/{id}/category")
+    suspend fun updateUserCategory(
+        @Path("id") userId: String,
+        @Body request: UpdateCategoryRequest,
+        @Header("Authorization") token: String
+    ): Response<MessageResponse>
+    
     // Content
     @GET("/api/content/modules")
     suspend fun getModules(

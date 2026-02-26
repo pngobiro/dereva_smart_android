@@ -56,6 +56,11 @@ data class ResetPasswordRequest(
     val newPassword: String
 )
 
+data class UpdateCategoryRequest(
+    @SerializedName("targetCategory")
+    val targetCategory: String
+)
+
 data class AuthResponse(
     val success: Boolean,
     val message: String? = null,

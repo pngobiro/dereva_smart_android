@@ -12,6 +12,8 @@ interface AuthRepository {
     
     suspend fun updateGuestCategory(category: LicenseCategory): Result<Unit>
     
+    suspend fun updateUserCategory(category: LicenseCategory): Result<Unit>
+    
     // Registration
     suspend fun register(request: RegistrationRequest): Result<AuthResult>
     

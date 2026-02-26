@@ -6,10 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.dereva.smart.data.local.entity.toDomain
-import com.dereva.smart.data.local.entity.toEntity
 import com.dereva.smart.data.remote.ApiClient
 import com.dereva.smart.data.remote.AuthService
+import com.dereva.smart.data.remote.dto.UpdateCategoryRequest
 import com.dereva.smart.domain.model.AuthResult
 import com.dereva.smart.domain.model.AuthState
 import com.dereva.smart.domain.model.LicenseCategory
@@ -18,20 +17,14 @@ import com.dereva.smart.domain.model.PasswordResetRequest
 import com.dereva.smart.domain.model.RegistrationRequest
 import com.dereva.smart.domain.model.SubscriptionStatus
 import com.dereva.smart.domain.model.User
-import com.dereva.smart.domain.model.VerificationCode
 import com.dereva.smart.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import java.util.Date
-import java.util.UUID
 import com.dereva.smart.data.remote.dto.LoginRequest as ApiLoginRequest
 import com.dereva.smart.data.remote.dto.RegisterRequest as ApiRegisterRequest
 
@@ -46,6 +39,7 @@ class AuthRepositoryImpl(
     private val USER_ID_KEY = stringPreferencesKey("user_id")
     private val GUEST_MODE_KEY = stringPreferencesKey("guest_mode")
     private val GUEST_CATEGORY_KEY = stringPreferencesKey("guest_category")
+    private val CATEGORY_SELECTED_KEY = stringPreferencesKey("category_selected")
 
     // In-memory cache for the current session
     private val _currentUser = MutableStateFlow<User?>(null)
@@ -56,7 +50,8 @@ class AuthRepositoryImpl(
         context.dataStore.edit { prefs ->
             prefs[GUEST_MODE_KEY] = "true"
             prefs[USER_ID_KEY] = guestUser.id
-            prefs[GUEST_CATEGORY_KEY] = guestUser.targetCategory.name
+            // Don't set category yet - let user select it
+            // prefs[GUEST_CATEGORY_KEY] = guestUser.targetCategory.name
         }
         
         _currentUser.value = guestUser
@@ -70,8 +65,34 @@ class AuthRepositoryImpl(
     override suspend fun updateGuestCategory(category: LicenseCategory): Result<Unit> = runCatching {
         context.dataStore.edit { prefs ->
             prefs[GUEST_CATEGORY_KEY] = category.name
+            prefs[CATEGORY_SELECTED_KEY] = "true"
         }
         _currentUser.update { it?.copy(targetCategory = category) }
+    }
+    
+    override suspend fun updateUserCategory(category: LicenseCategory): Result<Unit> = runCatching {
+        // Get current user and token
+        val user = _currentUser.value ?: throw Exception("No user logged in")
+        val token = context.dataStore.data.first()[TOKEN_KEY] ?: throw Exception("No auth token")
+        
+        // Call API to update category
+        val response = ApiClient.apiService.updateUserCategory(
+            userId = user.id,
+            request = UpdateCategoryRequest(targetCategory = category.name),
+            token = "Bearer $token"
+        )
+        
+        if (!response.isSuccessful) {
+            throw Exception("Failed to update category: ${response.message()}")
+        }
+        
+        // Update local user
+        _currentUser.update { it?.copy(targetCategory = category) }
+        
+        // Update DataStore
+        context.dataStore.edit { prefs ->
+            prefs[GUEST_CATEGORY_KEY] = category.name
+        }
     }
     
     override suspend fun register(request: RegistrationRequest): Result<AuthResult> = runCatching {

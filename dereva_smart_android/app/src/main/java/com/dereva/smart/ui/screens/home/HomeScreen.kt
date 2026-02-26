@@ -151,11 +151,22 @@ fun HomeScreen(navController: NavController) {
                                     Text("Change Category")
                                 }
                             } else {
+                                // Show Get Premium button
                                 Button(
                                     onClick = { navController.navigate(Screen.Payment.route) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = if (currentUserVal.isSubscriptionActive) Modifier.fillMaxWidth() else Modifier.weight(1f)
                                 ) {
                                     Text("Get Premium")
+                                }
+                                
+                                // Show Change Category button only if subscription is NOT active
+                                if (!currentUserVal.isSubscriptionActive) {
+                                    OutlinedButton(
+                                        onClick = { navController.navigate(Screen.CategorySelection.route) },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Change Category")
+                                    }
                                 }
                             }
                         }

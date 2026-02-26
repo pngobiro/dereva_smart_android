@@ -282,12 +282,25 @@ class AuthViewModel(
     fun updateGuestCategory(category: LicenseCategory) {
         viewModelScope.launch {
             val currentUser = _uiState.value.currentUser
-            if (currentUser?.isGuestMode == true) {
-                authRepository.updateGuestCategory(category)
-                    .onSuccess {
-                        val updatedUser = currentUser.copy(targetCategory = category)
-                        _uiState.update { it.copy(currentUser = updatedUser) }
-                    }
+            if (currentUser != null) {
+                if (currentUser.isGuestMode) {
+                    // Guest user - update locally
+                    authRepository.updateGuestCategory(category)
+                        .onSuccess {
+                            val updatedUser = currentUser.copy(targetCategory = category)
+                            _uiState.update { it.copy(currentUser = updatedUser) }
+                        }
+                } else if (!currentUser.isSubscriptionActive) {
+                    // Registered user without active subscription - update via API
+                    authRepository.updateUserCategory(category)
+                        .onSuccess {
+                            val updatedUser = currentUser.copy(targetCategory = category)
+                            _uiState.update { it.copy(currentUser = updatedUser) }
+                        }
+                        .onFailure { error ->
+                            _uiState.update { it.copy(errorMessage = error.message) }
+                        }
+                }
             }
         }
     }
