@@ -276,3 +276,176 @@ data class TutorResponse(
     val question: String,
     val category: String? = null
 )
+
+// Quiz
+data class QuizBanksResponse(
+    val quizzes: List<QuizBankDto>
+)
+
+data class QuizBankDto(
+    val id: String,
+    val title: String,
+    val description: String,
+    @SerializedName("licenseCategory")
+    val licenseCategory: String,
+    @SerializedName("topicArea")
+    val topicArea: String,
+    val difficulty: String,
+    @SerializedName("totalQuestions")
+    val totalQuestions: Int,
+    @SerializedName("timeLimit")
+    val timeLimit: Int,
+    @SerializedName("passingScore")
+    val passingScore: Int,
+    @SerializedName("isPremium")
+    val isPremium: Boolean,
+    @SerializedName("jsonUrl")
+    val jsonUrl: String,
+    val version: Int,
+    val order: Int,
+    @SerializedName("createdAt")
+    val createdAt: Long,
+    @SerializedName("updatedAt")
+    val updatedAt: Long
+)
+
+data class QuizContentDto(
+    val id: String,
+    val title: String,
+    val description: String,
+    @SerializedName("licenseCategory")
+    val licenseCategory: String,
+    @SerializedName("topicArea")
+    val topicArea: String,
+    val difficulty: String,
+    @SerializedName("timeLimit")
+    val timeLimit: Int,
+    @SerializedName("passingScore")
+    val passingScore: Int,
+    @SerializedName("isPaid")
+    val isPaid: Boolean,
+    val version: Int,
+    val order: Int,
+    val questions: List<QuizQuestionDto>
+)
+
+data class QuizQuestionDto(
+    val id: String,
+    val type: String,
+    val question: String,
+    val points: Int,
+    val options: List<QuizOptionDto>? = null,
+    @SerializedName("correctAnswer")
+    val correctAnswer: Boolean? = null,
+    val blanks: List<QuizBlankDto>? = null,
+    val pairs: List<QuizPairDto>? = null,
+    val items: List<QuizItemDto>? = null,
+    @SerializedName("acceptedAnswers")
+    val acceptedAnswers: List<String>? = null,
+    @SerializedName("partialCredit")
+    val partialCredit: Boolean? = null,
+    @SerializedName("caseSensitive")
+    val caseSensitive: Boolean? = null,
+    val explanation: String,
+    val hint: String? = null,
+    val media: QuizMediaDto? = null,
+    @SerializedName("richContent")
+    val richContent: QuizRichContentDto? = null
+)
+
+data class QuizOptionDto(
+    val id: String,
+    val text: String,
+    @SerializedName("isCorrect")
+    val isCorrect: Boolean
+)
+
+data class QuizBlankDto(
+    val id: String,
+    @SerializedName("acceptedAnswers")
+    val acceptedAnswers: List<String>
+)
+
+data class QuizPairDto(
+    val id: String,
+    val left: String,
+    val right: String
+)
+
+data class QuizItemDto(
+    val id: String,
+    val text: String,
+    @SerializedName("correctPosition")
+    val correctPosition: Int
+)
+
+data class QuizMediaDto(
+    val type: String,
+    val url: String,
+    val caption: String? = null
+)
+
+data class QuizRichContentDto(
+    val type: String,
+    val content: String
+)
+
+data class SubmitQuizRequest(
+    val answers: List<QuizAnswerDto>,
+    @SerializedName("timeTaken")
+    val timeTaken: Int
+)
+
+data class QuizAnswerDto(
+    @SerializedName("questionId")
+    val questionId: String,
+    val answer: Any?
+)
+
+data class QuizAttemptResponse(
+    @SerializedName("attemptId")
+    val attemptId: String?,
+    val score: Int,
+    val passed: Boolean,
+    @SerializedName("correctAnswers")
+    val correctAnswers: Int,
+    @SerializedName("totalQuestions")
+    val totalQuestions: Int,
+    @SerializedName("timeTaken")
+    val timeTaken: Int,
+    val feedback: List<QuizFeedbackDto>,
+    @SerializedName("isGuest")
+    val isGuest: Boolean
+)
+
+data class QuizFeedbackDto(
+    @SerializedName("questionId")
+    val questionId: String,
+    @SerializedName("isCorrect")
+    val isCorrect: Boolean,
+    val explanation: String,
+    @SerializedName("userAnswer")
+    val userAnswer: String? = null
+)
+
+data class QuizAttemptsResponse(
+    val attempts: List<QuizAttemptHistoryDto>
+)
+
+data class QuizAttemptHistoryDto(
+    val id: String,
+    @SerializedName("quizBankId")
+    val quizBankId: String,
+    @SerializedName("startedAt")
+    val startedAt: Long,
+    @SerializedName("completedAt")
+    val completedAt: Long,
+    @SerializedName("timeTaken")
+    val timeTaken: Int,
+    @SerializedName("totalQuestions")
+    val totalQuestions: Int,
+    @SerializedName("correctAnswers")
+    val correctAnswers: Int,
+    val score: Int,
+    val passed: Boolean
+)

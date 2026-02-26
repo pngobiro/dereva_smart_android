@@ -14,6 +14,7 @@ import com.dereva.smart.data.repository.ContentRepositoryImpl
 import com.dereva.smart.data.repository.MockTestRepositoryImpl
 import com.dereva.smart.data.repository.PaymentRepositoryImpl
 import com.dereva.smart.data.repository.ProgressRepositoryImpl
+import com.dereva.smart.data.repository.QuizRepositoryImpl
 import com.dereva.smart.data.repository.SchoolRepositoryImpl
 import com.dereva.smart.domain.repository.AITutorRepository
 import com.dereva.smart.domain.repository.AuthRepository
@@ -21,12 +22,14 @@ import com.dereva.smart.domain.repository.ContentRepository
 import com.dereva.smart.domain.repository.MockTestRepository
 import com.dereva.smart.domain.repository.PaymentRepository
 import com.dereva.smart.domain.repository.ProgressRepository
+import com.dereva.smart.domain.repository.QuizRepository
 import com.dereva.smart.domain.repository.SchoolRepository
 import com.dereva.smart.ui.screens.auth.AuthViewModel
 import com.dereva.smart.ui.screens.content.ContentViewModel
 import com.dereva.smart.ui.screens.mocktest.MockTestViewModel
 import com.dereva.smart.ui.screens.payment.PaymentViewModel
 import com.dereva.smart.ui.screens.progress.ProgressViewModel
+import com.dereva.smart.ui.screens.quiz.QuizViewModel
 import com.dereva.smart.ui.screens.school.SchoolViewModel
 import com.dereva.smart.ui.screens.tutor.TutorViewModel
 import org.koin.android.ext.koin.androidContext
@@ -93,9 +96,16 @@ val appModule = module {
         )
     }
     
+    single<QuizRepository> {
+        QuizRepositoryImpl(
+            apiService = get()
+        )
+    }
+    
     // ViewModels
     viewModel { AuthViewModel(authRepository = get()) }
     viewModel { MockTestViewModel(repository = get()) }
+    viewModel { QuizViewModel(repository = get()) }
     viewModel { ProgressViewModel(progressRepository = get(), mockTestRepository = get()) }
     viewModel { TutorViewModel(repository = get()) }
     viewModel { SchoolViewModel(repository = get()) }

@@ -120,4 +120,35 @@ interface DerevaApiService {
         @Body request: TutorRequest,
         @Header("Authorization") token: String
     ): Response<TutorResponse>
+    
+    // Quiz
+    @GET("/api/quizzes")
+    suspend fun getQuizBanks(
+        @Query("category") category: String? = null,
+        @Query("isPremium") isPremium: Boolean? = null
+    ): Response<QuizBanksResponse>
+    
+    @GET("/api/quizzes/{id}")
+    suspend fun getQuizBank(
+        @Path("id") quizId: String
+    ): Response<QuizBankDto>
+    
+    @GET("/api/quizzes/{id}/content")
+    suspend fun getQuizContent(
+        @Path("id") quizId: String,
+        @Header("Authorization") token: String? = null
+    ): Response<QuizContentDto>
+    
+    @POST("/api/quizzes/{id}/attempts")
+    suspend fun submitQuizAttempt(
+        @Path("id") quizId: String,
+        @Body request: SubmitQuizRequest,
+        @Header("Authorization") token: String? = null
+    ): Response<QuizAttemptResponse>
+    
+    @GET("/api/quizzes/{id}/attempts")
+    suspend fun getQuizAttempts(
+        @Path("id") quizId: String,
+        @Header("Authorization") token: String
+    ): Response<QuizAttemptsResponse>
 }
