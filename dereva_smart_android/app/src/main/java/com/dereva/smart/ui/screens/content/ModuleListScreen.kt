@@ -40,6 +40,17 @@ fun ModuleListScreen(
                                 text = if (it.isGuestMode) "Browse all categories" else "Category: ${it.targetCategory.name}",
                                 style = MaterialTheme.typography.bodySmall
                             )
+                            // Debug: Show subscription status
+                            if (!it.isGuestMode) {
+                                Text(
+                                    text = "Status: ${it.subscriptionStatus.name} | Active: ${it.isSubscriptionActive}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (it.isSubscriptionActive) 
+                                        MaterialTheme.colorScheme.primary 
+                                    else 
+                                        MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 },
