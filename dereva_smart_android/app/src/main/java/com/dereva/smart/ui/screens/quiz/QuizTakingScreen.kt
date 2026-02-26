@@ -520,6 +520,8 @@ fun QuizResultDialog(
     result: com.dereva.smart.domain.model.QuizAttempt,
     onDismiss: () -> Unit
 ) {
+    var showDetails by remember { mutableStateOf(false) }
+    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -529,7 +531,9 @@ fun QuizResultDialog(
             )
         },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 Text(
                     text = "Score: ${result.score}%",
                     style = MaterialTheme.typography.headlineMedium,
@@ -551,6 +555,35 @@ fun QuizResultDialog(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+                
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                
+                // Toggle button for detailed feedback
+                TextButton(
+                    onClick = { showDetails = !showDetails },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (showDetails) "Hide Explanations ▲" else "Show Explanations ▼",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                }
+                
+                // Show detailed feedback if toggled
+                if (showDetails && result.feedback.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    result.feedback.forEachIndexed { index, feedback ->
+                        QuestionFeedbackCard(
+                            questionNumber = index + 1,
+                            feedback = feedback
+                        )
+                        if (index < result.feedback.size - 1) {
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -559,6 +592,72 @@ fun QuizResultDialog(
             }
         }
     )
+}
+
+@Composable
+fun QuestionFeedbackCard(
+    questionNumber: Int,
+    feedback: com.dereva.smart.domain.model.QuizFeedback
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (feedback.isCorrect) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else 
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Q$questionNumber",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (feedback.isCorrect) "✓ Correct" else "✗ Incorrect",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (feedback.isCorrect) 
+                        MaterialTheme.colorScheme.primary 
+                    else 
+                        MaterialTheme.colorScheme.error
+                )
+            }
+            
+            if (feedback.userAnswer != null) {
+                Text(
+                    text = "Your answer: ${formatUserAnswer(feedback.userAnswer)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            if (feedback.explanation.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "💡 ${feedback.explanation}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+fun formatUserAnswer(answer: Any?): String {
+    return when (answer) {
+        is String -> answer
+        is Boolean -> if (answer) "True" else "False"
+        is List<*> -> answer.joinToString(", ")
+        else -> answer?.toString() ?: "No answer"
+    }
 }
 
 fun formatTime(seconds: Int): String {
