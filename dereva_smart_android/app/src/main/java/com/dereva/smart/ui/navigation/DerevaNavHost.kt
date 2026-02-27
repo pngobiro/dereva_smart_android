@@ -41,7 +41,6 @@ import com.dereva.smart.ui.screens.payment.PaymentViewModel
 import com.dereva.smart.ui.screens.progress.ProgressScreen
 import com.dereva.smart.ui.screens.school.SchoolScreen
 import com.dereva.smart.ui.screens.simulation.SimulationScreen
-import com.dereva.smart.ui.screens.tutor.TutorScreen
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -56,7 +55,7 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object MockTest : Screen("mock_test")
     object Progress : Screen("progress")
-    object Tutor : Screen("tutor")
+    object Profile : Screen("profile")
     object School : Screen("school")
     object Payment : Screen("payment")
     object ModuleList : Screen("module_list")
@@ -216,19 +215,11 @@ fun DerevaNavHost() {
             ProgressScreen(navController = navController)
         }
         
-        composable(Screen.Tutor.route) {
-            val user = currentUser
-            if (user?.isSubscriptionActive == true) {
-                TutorScreen(navController = navController)
-            } else {
-                LaunchedEffect(Unit) {
-                    if (user?.isGuestMode == true) {
-                        navController.navigate(Screen.Register.route)
-                    } else {
-                        navController.navigate(Screen.Payment.route)
-                    }
-                }
-            }
+        composable(Screen.Profile.route) {
+            com.dereva.smart.ui.screens.profile.ProfileScreen(
+                navController = navController,
+                authViewModel = authViewModel
+            )
         }
         
         composable(Screen.School.route) {

@@ -12,6 +12,9 @@ interface SchoolRepository {
     
     suspend fun getVerifiedSchools(): Result<List<DrivingSchool>>
     
+    // Update user's school
+    suspend fun updateUserSchool(userId: String, schoolId: String?): Result<Unit>
+    
     // School Linking
     suspend fun linkToSchool(userId: String, schoolCode: String): Result<SchoolLinking>
     

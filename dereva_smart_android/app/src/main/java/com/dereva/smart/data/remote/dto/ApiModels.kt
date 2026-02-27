@@ -24,7 +24,9 @@ data class RegisterRequest(
     @SerializedName("name")
     val name: String,
     @SerializedName("licenseCategory")
-    val category: String
+    val category: String,
+    @SerializedName("drivingSchoolId")
+    val drivingSchoolId: String? = null
 )
 
 data class LoginRequest(
@@ -61,6 +63,11 @@ data class UpdateCategoryRequest(
     val targetCategory: String
 )
 
+data class UpdateSchoolRequest(
+    @SerializedName("drivingSchoolId")
+    val drivingSchoolId: String?
+)
+
 data class AuthResponse(
     val success: Boolean,
     val message: String? = null,
@@ -77,6 +84,8 @@ data class UserData(
     val name: String,
     @SerializedName("target_category", alternate = ["targetCategory", "category"])
     val category: String,
+    @SerializedName("driving_school_id", alternate = ["drivingSchoolId"])
+    val drivingSchoolId: String? = null,
     @SerializedName("subscription_status", alternate = ["subscriptionStatus"])
     val subscriptionStatus: String,
     @SerializedName("subscription_expiry_date", alternate = ["subscriptionExpiresAt", "subscriptionExpiryDate"])

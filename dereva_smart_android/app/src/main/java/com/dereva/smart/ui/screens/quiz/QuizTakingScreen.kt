@@ -487,16 +487,26 @@ fun MediaContent(media: QuizMedia) {
                     }
                 }
                 "video" -> {
+                    val context = androidx.compose.ui.platform.LocalContext.current
                     Text(
                         text = "📹 ${media.caption ?: "Watch video"}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Text(
-                        text = media.url,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(media.url))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Open Video")
+                    }
                 }
                 "audio" -> {
                     Text(

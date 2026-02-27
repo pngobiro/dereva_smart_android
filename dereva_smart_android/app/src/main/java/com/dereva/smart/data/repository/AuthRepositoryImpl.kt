@@ -105,7 +105,8 @@ class AuthRepositoryImpl(
             phone = formattedPhone,
             password = request.password,
             name = request.fullName,
-            category = request.licenseCategory.name
+            category = request.licenseCategory.name,
+            drivingSchoolId = request.drivingSchoolId
         )
         
         val response = ApiClient.apiService.register(apiRequest)
@@ -123,6 +124,7 @@ class AuthRepositoryImpl(
             name = userDto.name,
             email = null,
             targetCategory = try { LicenseCategory.valueOf(userDto.category) } catch(e: Exception) { LicenseCategory.B1 },
+            drivingSchoolId = request.drivingSchoolId,
             subscriptionStatus = SubscriptionStatus.FREE,
             subscriptionExpiryDate = null,
             isPhoneVerified = false,
@@ -171,6 +173,7 @@ class AuthRepositoryImpl(
             name = userDto.name,
             email = null,
             targetCategory = try { LicenseCategory.valueOf(userDto.category) } catch(e: Exception) { LicenseCategory.B1 },
+            drivingSchoolId = userDto.drivingSchoolId,
             subscriptionStatus = when(userDto.subscriptionStatus.uppercase()) {
                 "PREMIUM_MONTHLY" -> SubscriptionStatus.PREMIUM_MONTHLY
                 else -> SubscriptionStatus.FREE

@@ -1,5 +1,6 @@
 package com.dereva.smart.ui.screens.home
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -8,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -20,6 +22,7 @@ import org.koin.androidx.compose.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current
     val authViewModel: AuthViewModel = koinViewModel()
     val authState by authViewModel.uiState.collectAsState()
     val currentUser = authState.currentUser
@@ -57,6 +60,24 @@ fun HomeScreen(navController: NavController) {
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 actions = {
+                    // Share App Button
+                    IconButton(onClick = {
+                        val referralCode = currentUser?.id?.take(8)?.uppercase() ?: "DEREVA"
+                        val shareText = "Join me on Dereva Smart and ace your NTSA driving test! Use my referral code: $referralCode\n\nDownload: https://play.google.com/store/apps/details?id=com.dereva.smart"
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share via"))
+                    }) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share App",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    
                     if (currentUser == null || currentUser.isGuestMode) {
                         TextButton(
                             onClick = { navController.navigate(Screen.Login.route) },
@@ -73,10 +94,11 @@ fun HomeScreen(navController: NavController) {
                             Text("Login")
                         }
                     } else {
-                        IconButton(onClick = { authViewModel.logout() }) {
+                        // Profile Button
+                        IconButton(onClick = { navController.navigate(Screen.Profile.route) }) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Logout",
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Profile",
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
@@ -124,7 +146,7 @@ fun HomeScreen(navController: NavController) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "Unlock all mock tests, AI tutor, and 3D simulation.",
+                                    text = "Unlock all mock tests and 3D simulation.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -211,14 +233,6 @@ fun HomeScreen(navController: NavController) {
                 description = "Monitor your learning journey",
                 icon = Icons.Default.Star,
                 onClick = { navController.navigate(Screen.Progress.route) }
-            )
-            
-            // AI Tutor Card
-            FeatureCard(
-                title = "AI Tutor",
-                description = "Get instant answers to your questions",
-                icon = Icons.Default.Person,
-                onClick = { navController.navigate(Screen.Tutor.route) }
             )
             
             // School Sync Card

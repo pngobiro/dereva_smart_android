@@ -32,14 +32,49 @@ class AuthViewModel(
     
     init {
         observeAuthState()
-        checkAndStartGuestMode()
+        checkAndRestoreSession()
+    }
+    
+    private fun checkAndRestoreSession() {
+        viewModelScope.launch {
+            // Try to restore existing session first
+            val isAuthenticated = authRepository.isAuthenticated()
+            if (isAuthenticated) {
+                // Try to refresh the session to get user data
+                authRepository.refreshSession()
+                    .onSuccess { authResult ->
+                        _uiState.update {
+                            it.copy(
+                                isAuthenticated = true,
+                                currentUser = authResult.user
+                            )
+                        }
+                    }
+                    .onFailure {
+                        // Session expired or invalid, check for guest mode
+                        checkAndStartGuestMode()
+                    }
+            } else {
+                // No session, check for guest mode
+                checkAndStartGuestMode()
+            }
+        }
     }
     
     private fun checkAndStartGuestMode() {
         viewModelScope.launch {
             val isGuest = authRepository.isGuestMode()
-            if (!isGuest && !authRepository.isAuthenticated()) {
-                // Start guest mode automatically
+            if (isGuest) {
+                // Restore guest user
+                val guestUser = User.createGuestUser()
+                _uiState.update {
+                    it.copy(
+                        isAuthenticated = true,
+                        currentUser = guestUser
+                    )
+                }
+            } else {
+                // Start new guest mode
                 startGuestMode()
             }
         }
@@ -338,6 +373,58 @@ class AuthViewModel(
                             schools = emptyList(),
                             isLoadingSchools = false,
                             errorMessage = "Failed to load schools: ${error.message}"
+                        )
+                    }
+                }
+        }
+    }
+    
+    fun updateUserSchool(schoolId: String?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            
+            val currentUser = _uiState.value.currentUser
+            if (currentUser == null) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "User not found"
+                    )
+                }
+                return@launch
+            }
+            
+            schoolRepository.updateUserSchool(currentUser.id, schoolId)
+                .onSuccess {
+                    // Refresh user from server to get updated data
+                    authRepository.refreshUser()
+                        .onSuccess { refreshedUser ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    currentUser = refreshedUser,
+                                    successMessage = if (schoolId != null) "School linked successfully" else "School unlinked successfully"
+                                )
+                            }
+                        }
+                        .onFailure { error ->
+                            // Fallback to local update if refresh fails
+                            val updatedUser = currentUser.copy(drivingSchoolId = schoolId)
+                            authRepository.updateUser(updatedUser)
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    currentUser = updatedUser,
+                                    successMessage = if (schoolId != null) "School linked successfully" else "School unlinked successfully"
+                                )
+                            }
+                        }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = error.message ?: "Failed to update school"
                         )
                     }
                 }

@@ -78,7 +78,8 @@ val appModule = module {
         SchoolRepositoryImpl(
             progressRepository = get(),
             mockTestRepository = get(),
-            apiService = get()
+            apiService = get(),
+            authRepository = get()
         )
     }
     
