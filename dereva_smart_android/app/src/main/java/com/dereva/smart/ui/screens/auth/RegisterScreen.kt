@@ -1,5 +1,6 @@
 package com.dereva.smart.ui.screens.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dereva.smart.domain.model.DrivingSchool
 import com.dereva.smart.domain.model.LicenseCategory
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,9 +40,16 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(LicenseCategory.B1) }
+    var selectedSchool by remember { mutableStateOf<DrivingSchool?>(null) }
+    var showSchoolDialog by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var showCategoryMenu by remember { mutableStateOf(false) }
+    
+    // Load schools from viewModel
+    LaunchedEffect(Unit) {
+        viewModel.loadSchools()
+    }
     
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
@@ -173,6 +182,55 @@ fun RegisterScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
             
+            // Driving School (Optional)
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !uiState.isLoading) { showSchoolDialog = true },
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Driving School (Optional)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = selectedSchool?.name ?: "Not selected",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (selectedSchool != null) 
+                                MaterialTheme.colorScheme.onSurface 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (selectedSchool != null) {
+                            Text(
+                                text = selectedSchool!!.location,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Change",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             // Password
             OutlinedTextField(
                 value = password,
@@ -248,7 +306,7 @@ fun RegisterScreen(
             // Register Button
             Button(
                 onClick = {
-                    viewModel.register(phoneNumber, password, fullName, selectedCategory)
+                    viewModel.register(phoneNumber, password, fullName, selectedCategory, selectedSchool?.id)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -315,6 +373,18 @@ fun RegisterScreen(
                 }
             }
         }
+    }
+    
+    // School Selection Dialog
+    if (showSchoolDialog) {
+        SchoolSelectionDialog(
+            schools = uiState.schools,
+            onSchoolSelected = { school ->
+                selectedSchool = school
+                showSchoolDialog = false
+            },
+            onDismiss = { showSchoolDialog = false }
+        )
     }
     
     DisposableEffect(Unit) {

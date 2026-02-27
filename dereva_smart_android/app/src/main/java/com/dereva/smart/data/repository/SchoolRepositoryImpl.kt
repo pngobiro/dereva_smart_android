@@ -19,7 +19,9 @@ class SchoolRepositoryImpl(
     
     override suspend fun getVerifiedSchools(): Result<List<DrivingSchool>> = runCatching {
         val response = apiService.getSchools()
-        if (!response.isSuccessful) return@runCatching emptyList()
+        if (!response.isSuccessful) {
+            return@runCatching emptyList()
+        }
         
         response.body()?.map { dto ->
             DrivingSchool(
@@ -27,9 +29,9 @@ class SchoolRepositoryImpl(
                 name = dto.name,
                 code = dto.id.take(6).uppercase(),
                 location = dto.location,
-                phoneNumber = dto.phone ?: "",
+                phoneNumber = dto.phone,
                 email = dto.email ?: "",
-                isVerified = true,
+                isVerified = dto.verified,
                 totalStudents = 0,
                 averagePassRate = 0.0,
                 createdAt = Date()

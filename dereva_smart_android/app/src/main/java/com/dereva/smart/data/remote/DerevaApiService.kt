@@ -112,7 +112,9 @@ interface DerevaApiService {
     
     // Schools
     @GET("/api/schools")
-    suspend fun getSchools(): Response<List<SchoolResponse>>
+    suspend fun getSchools(
+        @Query("verified") verified: Boolean? = true
+    ): Response<List<SchoolResponse>>
     
     // AI Tutor
     @POST("/api/tutor/ask")

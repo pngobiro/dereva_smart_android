@@ -55,7 +55,8 @@ data class RegistrationRequest(
     val phoneNumber: String,
     val password: String,
     val fullName: String,
-    val licenseCategory: LicenseCategory = LicenseCategory.B1
+    val licenseCategory: LicenseCategory = LicenseCategory.B1,
+    val drivingSchoolId: String? = null
 )
 
 data class LoginRequest(

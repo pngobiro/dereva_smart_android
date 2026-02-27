@@ -17,11 +17,14 @@ data class AuthUiState(
     val phoneNumber: String = "",
     val verificationCodeSent: Boolean = false,
     val isUserNotFound: Boolean = false,
-    val isUserAlreadyExists: Boolean = false
+    val isUserAlreadyExists: Boolean = false,
+    val schools: List<DrivingSchool> = emptyList(),
+    val isLoadingSchools: Boolean = false
 )
 
 class AuthViewModel(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val schoolRepository: com.dereva.smart.domain.repository.SchoolRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -70,7 +73,7 @@ class AuthViewModel(
         }
     }
     
-    fun register(phoneNumber: String, password: String, fullName: String, licenseCategory: LicenseCategory) {
+    fun register(phoneNumber: String, password: String, fullName: String, licenseCategory: LicenseCategory, drivingSchoolId: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null, isUserAlreadyExists = false) }
             
@@ -78,7 +81,8 @@ class AuthViewModel(
                 phoneNumber = phoneNumber,
                 password = password,
                 fullName = fullName,
-                licenseCategory = licenseCategory
+                licenseCategory = licenseCategory,
+                drivingSchoolId = drivingSchoolId
             )
             
             authRepository.register(request)
@@ -313,6 +317,31 @@ class AuthViewModel(
     fun validatePhoneNumber(phoneNumber: String): String? {
         return authRepository.validatePhoneNumber(phoneNumber)
             .exceptionOrNull()?.message
+    }
+    
+    fun loadSchools() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSchools = true) }
+            
+            schoolRepository.getVerifiedSchools()
+                .onSuccess { schools ->
+                    _uiState.update {
+                        it.copy(
+                            schools = schools,
+                            isLoadingSchools = false
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            schools = emptyList(),
+                            isLoadingSchools = false,
+                            errorMessage = "Failed to load schools: ${error.message}"
+                        )
+                    }
+                }
+        }
     }
     
     suspend fun getAuthToken(): String? {

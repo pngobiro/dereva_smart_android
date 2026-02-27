@@ -103,7 +103,7 @@ val appModule = module {
     }
     
     // ViewModels
-    viewModel { AuthViewModel(authRepository = get()) }
+    viewModel { AuthViewModel(authRepository = get(), schoolRepository = get()) }
     viewModel { MockTestViewModel(repository = get()) }
     viewModel { QuizViewModel(repository = get()) }
     viewModel { ProgressViewModel(progressRepository = get(), mockTestRepository = get()) }
