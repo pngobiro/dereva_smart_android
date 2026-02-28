@@ -40,6 +40,8 @@ class AuthRepositoryImpl(
     private val GUEST_MODE_KEY = stringPreferencesKey("guest_mode")
     private val GUEST_CATEGORY_KEY = stringPreferencesKey("guest_category")
     private val CATEGORY_SELECTED_KEY = stringPreferencesKey("category_selected")
+    private val CACHED_USER_KEY = stringPreferencesKey("cached_user")
+    private val gson = com.google.gson.Gson()
 
     // In-memory cache for the current session
     private val _currentUser = MutableStateFlow<User?>(null)
@@ -135,6 +137,9 @@ class AuthRepositoryImpl(
         
         authResponse.token?.let { token ->
             saveSession(token, user.id)
+            context.dataStore.edit { prefs ->
+                prefs[CACHED_USER_KEY] = gson.toJson(user)
+            }
         }
         
         _currentUser.value = user
@@ -185,15 +190,16 @@ class AuthRepositoryImpl(
             lastLoginAt = Date()
         )
         
-        val token = authResponse.token ?: throw Exception("No token received")
-        saveSession(token, user.id)
+                val token = authResponse.token ?: throw Exception("No token received")
+                saveSession(token, user.id)
         
-        context.dataStore.edit { prefs ->
-            prefs.remove(GUEST_MODE_KEY)
-            prefs.remove(GUEST_CATEGORY_KEY)
-        }
+                context.dataStore.edit { prefs ->
+                    prefs.remove(GUEST_MODE_KEY)
+                    prefs.remove(GUEST_CATEGORY_KEY)
+                    prefs[CACHED_USER_KEY] = gson.toJson(user)
+                }
         
-        _currentUser.value = user
+                _currentUser.value = user
         AuthResult(success = true, user = user, token = token, errorMessage = null)
     }
     
@@ -242,40 +248,62 @@ class AuthRepositoryImpl(
         user
     }
 
-    override suspend fun refreshUser(): Result<User> = runCatching {
-        val userId = getStoredUserId() ?: throw Exception("No user ID found")
-        val token = getStoredToken() ?: throw Exception("No auth token found")
-        
-        val response = ApiClient.apiService.getUser(userId, "Bearer $token")
-        if (!response.isSuccessful || response.body() == null) throw Exception("Failed to refresh profile")
-        
-        val userDto = response.body()!!
-        val updatedUser = User(
-            id = userDto.id,
-            phoneNumber = userDto.phoneNumber,
-            name = userDto.name,
-            email = userDto.email,
-            targetCategory = try { LicenseCategory.valueOf(userDto.targetCategory) } catch(e: Exception) { LicenseCategory.B1 },
-            drivingSchoolId = userDto.drivingSchoolId,
-            subscriptionStatus = when(userDto.subscriptionStatus.uppercase()) {
-                "PREMIUM_MONTHLY" -> SubscriptionStatus.PREMIUM_MONTHLY
-                else -> SubscriptionStatus.FREE
-            },
-            subscriptionExpiryDate = userDto.subscriptionExpiryDate?.let { Date(it) },
-            isPhoneVerified = userDto.isPhoneVerified,
-            createdAt = Date(userDto.createdAt),
-            lastActiveAt = Date(),
-            lastLoginAt = null
-        )
-        
-        _currentUser.value = updatedUser
-        updatedUser
-    }
+        override suspend fun refreshUser(): Result<User> = runCatching {
+            val userId = getStoredUserId() ?: throw Exception("No user ID found")
+            val token = getStoredToken() ?: throw Exception("No auth token found")
     
+            try {
+                val response = ApiClient.apiService.getUser(userId, "Bearer $token")
+                if (!response.isSuccessful || response.body() == null) throw Exception("Failed to refresh profile")
+    
+                val userDto = response.body()!!
+                val updatedUser = User(
+                    id = userDto.id,
+                    phoneNumber = userDto.phoneNumber,
+                    name = userDto.name,
+                    email = userDto.email,
+                    targetCategory = try { LicenseCategory.valueOf(userDto.targetCategory) } catch(e: Exception) { LicenseCategory.B1 },
+                    drivingSchoolId = userDto.drivingSchoolId,
+                    subscriptionStatus = when(userDto.subscriptionStatus.uppercase()) {
+                        "PREMIUM_MONTHLY" -> SubscriptionStatus.PREMIUM_MONTHLY
+                        else -> SubscriptionStatus.FREE
+                    },
+                    subscriptionExpiryDate = userDto.subscriptionExpiryDate?.let { Date(it) },
+                    isPhoneVerified = userDto.isPhoneVerified,
+                    createdAt = Date(userDto.createdAt),
+                    lastActiveAt = Date(),
+                    lastLoginAt = null
+                )
+    
+                // Cache the user for offline access
+                context.dataStore.edit { prefs ->
+                    prefs[CACHED_USER_KEY] = gson.toJson(updatedUser)
+                }
+    
+                _currentUser.value = updatedUser
+                return@runCatching updatedUser
+            } catch (e: Exception) {
+                // Fallback to cached user if offline
+                val cachedUserJson = context.dataStore.data.first()[CACHED_USER_KEY]
+                if (cachedUserJson != null) {
+                    try {
+                        val cachedUser = gson.fromJson(cachedUserJson, User::class.java)
+                        _currentUser.value = cachedUser
+                        return@runCatching cachedUser
+                    } catch (parseError: Exception) {
+                        throw e
+                    }
+                }
+                throw e
+            }
+        }    
     override fun getCurrentUserFlow(): Flow<User?> = _currentUser.asStateFlow()
     
     override suspend fun updateUser(user: User): Result<Unit> = runCatching {
         _currentUser.value = user
+        context.dataStore.edit { prefs ->
+            prefs[CACHED_USER_KEY] = gson.toJson(user)
+        }
     }
     
     override suspend fun deleteAccount(userId: String, password: String): Result<Unit> = runCatching {
@@ -336,6 +364,7 @@ class AuthRepositoryImpl(
         context.dataStore.edit { prefs ->
             prefs.remove(TOKEN_KEY)
             prefs.remove(USER_ID_KEY)
+            prefs.remove(CACHED_USER_KEY)
         }
     }
     
