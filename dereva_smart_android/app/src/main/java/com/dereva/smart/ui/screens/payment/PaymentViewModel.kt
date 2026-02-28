@@ -40,11 +40,22 @@ class PaymentViewModel(
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
     
     init {
+        loadUserPhoneNumber()
         checkPendingPayment()
         loadAvailablePlans()
         loadActiveSubscription()
         loadPaymentHistory()
         loadUserReferralCode()
+    }
+    
+    private fun loadUserPhoneNumber() {
+        viewModelScope.launch {
+            authRepository.getCurrentUser().onSuccess { user ->
+                if (user != null) {
+                    _uiState.update { it.copy(phoneNumber = user.phoneNumber) }
+                }
+            }
+        }
     }
     
     private fun checkPendingPayment() {
