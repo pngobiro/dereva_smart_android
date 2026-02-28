@@ -259,6 +259,14 @@ fun HomeScreen(navController: NavController) {
                 icon = Icons.Default.Place,
                 onClick = { navController.navigate(Screen.Simulation.route) }
             )
+            
+            // Help & Support Card
+            FeatureCard(
+                title = "Help & Support",
+                description = "FAQs, contact us, and useful links",
+                icon = Icons.Default.Info,
+                onClick = { navController.navigate(Screen.Help.route) }
+            )
         }
     }
 }

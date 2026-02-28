@@ -85,9 +85,21 @@ interface DerevaApiService {
         @Header("Authorization") token: String
     ): Response<List<ProgressResponse>>
     
+    @GET("/api/progress/{userId}/summary")
+    suspend fun getProgressSummary(
+        @Path("userId") userId: String,
+        @Header("Authorization") token: String
+    ): Response<ProgressSummaryDto>
+    
     @POST("/api/progress")
     suspend fun updateProgress(
         @Body request: UpdateProgressRequest,
+        @Header("Authorization") token: String
+    ): Response<MessageResponse>
+    
+    @POST("/api/progress/record-session")
+    suspend fun recordStudySession(
+        @Body request: StudySessionDto,
         @Header("Authorization") token: String
     ): Response<MessageResponse>
     

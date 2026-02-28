@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <group
+        android:scaleX="2.8"
+        android:scaleY="2.8"
+        android:translateX="20.4"
+        android:translateY="20.4">
+        
+        <!-- Shield Background -->
+        <path
+            android:fillColor="#E3F2FD"
+            android:pathData="M12,1 L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5l-9,-4z"/>
+            
+        <!-- Steering Wheel Outer Ring -->
+        <path
+            android:fillColor="#1565C0"
+            android:pathData="M12,5.5 c-3.59,0 -6.5,2.91 -6.5,6.5 c0,3.59 2.91,6.5 6.5,6.5 c3.59,0 6.5,-2.91 6.5,-6.5 c0,-3.59 -2.91,-6.5 -6.5,-6.5 z M12,16.5 c-2.48,0 -4.5,-2.02 -4.5,-4.5 c0,-2.48 2.02,-4.5 4.5,-4.5 c2.48,0 4.5,2.02 4.5,4.5 c0,2.48 -2.02,4.5 -4.5,4.5 z"/>
+            
+        <!-- Steering Wheel Hub -->
+        <path
+            android:fillColor="#1565C0"
+            android:pathData="M12,10.5 c-0.83,0 -1.5,0.67 -1.5,1.5 c0,0.83 0.67,1.5 1.5,1.5 c0.83,0 1.5,-0.67 1.5,-1.5 c0,-0.83 -0.67,-1.5 -1.5,-1.5 z"/>
+            
+        <!-- Left Spoke -->
+        <path
+            android:fillColor="#1565C0"
+            android:pathData="M7.5,11.5 h3 v2 h-3 z"/>
+            
+        <!-- Right Spoke -->
+        <path
+            android:fillColor="#1565C0"
+            android:pathData="M13.5,11.5 h3 v2 h-3 z"/>
+            
+        <!-- Bottom Spoke -->
+        <path
+            android:fillColor="#1565C0"
+            android:pathData="M11,13 h2 v3.5 h-2 z"/>
+            
+    </group>
+</vector>

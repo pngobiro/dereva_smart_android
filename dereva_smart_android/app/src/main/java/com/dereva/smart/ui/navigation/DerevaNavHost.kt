@@ -56,6 +56,7 @@ sealed class Screen(val route: String) {
     object MockTest : Screen("mock_test")
     object Progress : Screen("progress")
     object Profile : Screen("profile")
+    object Help : Screen("help")
     object School : Screen("school")
     object Payment : Screen("payment")
     object ModuleList : Screen("module_list")
@@ -220,6 +221,10 @@ fun DerevaNavHost() {
                 navController = navController,
                 authViewModel = authViewModel
             )
+        }
+        
+        composable(Screen.Help.route) {
+            com.dereva.smart.ui.screens.help.HelpScreen(navController = navController)
         }
         
         composable(Screen.School.route) {

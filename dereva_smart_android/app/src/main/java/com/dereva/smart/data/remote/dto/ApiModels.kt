@@ -212,6 +212,36 @@ data class UpdateProgressRequest(
     val timeSpentMinutes: Int? = null
 )
 
+data class ProgressSummaryDto(
+    val userId: String,
+    val totalStudyTimeMinutes: Int,
+    val completionPercentage: Double,
+    val currentStreak: Int,
+    val longestStreak: Int,
+    val lastStudyDate: Long?,
+    val badges: List<AchievementDto>
+)
+
+data class AchievementDto(
+    val id: String,
+    val userId: String,
+    val badgeType: String,
+    val earnedAt: Long,
+    val titleEn: String,
+    val titleSw: String,
+    val descriptionEn: String,
+    val descriptionSw: String
+)
+
+data class StudySessionDto(
+    val userId: String,
+    val lessonId: String,
+    val startTime: Long,
+    val endTime: Long,
+    val durationMinutes: Int,
+    val completed: Boolean
+)
+
 // Payments
 data class PaymentConfigResponse(
     val success: Boolean,
