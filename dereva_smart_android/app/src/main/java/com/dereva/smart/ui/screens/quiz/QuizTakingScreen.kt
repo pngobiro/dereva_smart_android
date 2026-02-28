@@ -68,10 +68,15 @@ fun QuizTakingScreen(
         }
     }
 
+    val scope = rememberCoroutineScope()
+
     // Auto-submit on time-out
     LaunchedEffect(isTimeUp) {
         if (isTimeUp && quiz != null) {
-            viewModel.submitQuiz(null)
+            scope.launch {
+                val token = authViewModel.getAuthToken()
+                viewModel.submitQuiz(token)
+            }
         }
     }
 
@@ -174,7 +179,12 @@ fun QuizTakingScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                         }
                     } else {
-                        Button(onClick = { viewModel.submitQuiz(null) }) {
+                        Button(onClick = { 
+                            scope.launch {
+                                val token = authViewModel.getAuthToken()
+                                viewModel.submitQuiz(token)
+                            }
+                        }) {
                             Text("Submit Quiz")
                         }
                     }
