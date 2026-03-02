@@ -1,12 +1,14 @@
 package com.dereva.smart.ui.screens.progress
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,6 +24,8 @@ fun ProgressScreen(
     viewModel: ProgressViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Quizzes", "Learning Modules")
     
     Scaffold(
         topBar = {
@@ -32,9 +36,16 @@ fun ProgressScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.loadProgress() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -43,138 +54,249 @@ fun ProgressScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            TabRow(selectedTabIndex = selectedTabIndex) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = { Text(title) }
+                    )
                 }
-            } else {
-                Text(
-                    text = "Your Learning Progress",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                
-                // Study Stats Card
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+            }
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (uiState.isLoading && uiState.progressSummary == null) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Study Statistics",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        HorizontalDivider()
-                        
-                        val summary = uiState.progressSummary
-                        StatRow("Total Study Time", "${summary?.totalStudyTimeMinutes ?: 0} minutes")
-                        StatRow("Completion", "${String.format("%.1f", summary?.completionPercentage ?: 0.0)}%")
-                        StatRow("Current Streak", "${summary?.currentStreak ?: 0} days")
-                        StatRow("Longest Streak", "${summary?.longestStreak ?: 0} days")
-                        
-                        summary?.lastStudyDate?.let { date ->
-                            val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                            StatRow("Last Study", formatter.format(date))
-                        }
+                        CircularProgressIndicator()
                     }
-                }
-                
-                // Test Performance Card
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Test Performance",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        HorizontalDivider()
+                } else {
+                    if (selectedTabIndex == 0) {
+                        // Quizzes Tab Content
                         
                         val analytics = uiState.performanceAnalytics
-                        StatRow("Tests Taken", "${analytics?.totalTestsTaken ?: 0}")
-                        StatRow("Tests Passed", "${analytics?.totalTestsPassed ?: 0}")
-                        StatRow("Average Score", "${String.format("%.1f", analytics?.averageScore ?: 0.0)}%")
-                        StatRow("Pass Rate", "${String.format("%.1f", analytics?.passRate ?: 0.0)}%")
-                        StatRow("Consecutive Passes", "${analytics?.consecutivePasses ?: 0}")
-                    }
-                }
-                
-                // Achievements Card
-                if (!uiState.progressSummary?.badges.isNullOrEmpty()) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        
+                        // Modern Stat Cards for Quizzes
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = "Achievements",
-                                style = MaterialTheme.typography.titleMedium
+                            StatCard(
+                                title = "Attempts",
+                                value = "${analytics?.totalTestsTaken ?: 0}",
+                                modifier = Modifier.weight(1f)
                             )
-                            HorizontalDivider()
-                            
-                            uiState.progressSummary?.badges?.take(5)?.forEach { badge ->
+                            StatCard(
+                                title = "Passed",
+                                value = "${analytics?.totalTestsPassed ?: 0}",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StatCard(
+                                title = "Avg Score",
+                                value = "${String.format("%.0f", analytics?.averageScore ?: 0.0)}%",
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                title = "Pass Rate",
+                                value = "${String.format("%.0f", analytics?.passRate ?: 0.0)}%",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        // Quiz Attempts History
+                        if (uiState.quizAttempts.isNotEmpty()) {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = "Quiz Attempts History",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    HorizontalDivider()
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    uiState.quizAttempts.forEach { attempt ->
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = attempt.quizTitle ?: "Quiz Attempt",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                    Text(
+                                                        text = attempt.category ?: "General",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Surface(
+                                                    color = if (attempt.passed) 
+                                                        MaterialTheme.colorScheme.primaryContainer 
+                                                    else 
+                                                        MaterialTheme.colorScheme.errorContainer,
+                                                    shape = MaterialTheme.shapes.small
+                                                ) {
+                                                    Text(
+                                                        text = "${attempt.scorePercentage}%",
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = if (attempt.passed) 
+                                                            MaterialTheme.colorScheme.onPrimaryContainer 
+                                                        else 
+                                                            MaterialTheme.colorScheme.onErrorContainer
+                                                    )
+                                                }
+                                            }
+                                            
+                                            val formatter = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+                                            Text(
+                                                text = "${attempt.correctAnswers}/${attempt.totalQuestions} • ${attempt.timeTakenSeconds / 60}m ${attempt.timeTakenSeconds % 60}s • ${attempt.completedAt?.let { formatter.format(it) } ?: "N/A"}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        if (attempt != uiState.quizAttempts.last()) {
+                                            HorizontalDivider()
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "No quiz attempts yet. Start taking quizzes to see your history here!",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                            )
+                        }
+                    } else {
+                        // Learning Modules Tab Content
+                        
+                        val summary = uiState.progressSummary
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StatCard(
+                                title = "Study Time",
+                                value = "${summary?.totalStudyTimeMinutes ?: 0}m",
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                title = "Completion",
+                                value = "${String.format("%.1f", summary?.completionPercentage ?: 0.0)}%",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StatCard(
+                                title = "Current Streak",
+                                value = "${summary?.currentStreak ?: 0}d",
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatCard(
+                                title = "Longest Streak",
+                                value = "${summary?.longestStreak ?: 0}d",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Achievements Card
+                        if (!uiState.progressSummary?.badges.isNullOrEmpty()) {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Achievements",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    HorizontalDivider()
+                                    
+                                    uiState.progressSummary?.badges?.take(5)?.forEach { badge ->
+                                        Text(
+                                            text = "🏆 ${badge.titleEn}",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Coming Soon",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "🏆 ${badge.titleEn}",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    text = "More Learning Stats Soon",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Detailed tracking for learning modules will be available here.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
-                }
-                
-                // Recent Tests Card
-                if (uiState.recentTestResults.isNotEmpty()) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    
+                    uiState.error?.let { error ->
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Recent Tests",
-                                style = MaterialTheme.typography.titleMedium
+                                text = error,
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onErrorContainer
                             )
-                            HorizontalDivider()
-                            
-                            uiState.recentTestResults.forEach { result ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = if (result.passed) "✓ Passed" else "✗ Failed",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = if (result.passed) 
-                                            MaterialTheme.colorScheme.primary 
-                                        else 
-                                            MaterialTheme.colorScheme.error
-                                    )
-                                    Text(
-                                        text = "${String.format("%.0f", result.scorePercentage)}%",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            }
                         }
-                    }
-                }
-                
-                uiState.error?.let { error ->
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Text(
-                            text = error,
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
                     }
                 }
             }
@@ -183,19 +305,21 @@ fun ProgressScreen(
 }
 
 @Composable
-fun StatRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium
-        )
+fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium
+            )
+        }
     }
 }

@@ -85,6 +85,12 @@ interface DerevaApiService {
         @Header("Authorization") token: String
     ): Response<List<ProgressResponse>>
     
+    @GET("/api/users/{id}/attempts")
+    suspend fun getUserQuizAttempts(
+        @Path("id") userId: String,
+        @Header("Authorization") token: String
+    ): Response<QuizAttemptsResponse>
+    
     @GET("/api/progress/{userId}/summary")
     suspend fun getProgressSummary(
         @Path("userId") userId: String,
@@ -134,6 +140,20 @@ interface DerevaApiService {
     suspend fun getSchools(
         @Query("verified") verified: Boolean? = true
     ): Response<List<SchoolResponse>>
+    
+    @GET("/api/schools/{schoolId}/stats")
+    suspend fun getSchoolStats(
+        @Path("schoolId") schoolId: String,
+        @Header("Authorization") token: String
+    ): Response<SchoolStatsDto>
+    
+    @GET("/api/schools/{schoolId}/progress")
+    suspend fun getSchoolProgress(
+        @Path("schoolId") schoolId: String,
+        @Query("limit") limit: Int? = 50,
+        @Query("category") category: String? = null,
+        @Header("Authorization") token: String
+    ): Response<SchoolProgressResponse>
     
     // AI Tutor
     @POST("/api/tutor/ask")

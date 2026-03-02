@@ -64,7 +64,8 @@ val appModule = module {
     
     single<ProgressRepository> {
         ProgressRepositoryImpl(
-            apiService = get()
+            apiService = get(),
+            authRepository = get()
         )
     }
     
@@ -107,7 +108,7 @@ val appModule = module {
     viewModel { AuthViewModel(authRepository = get(), schoolRepository = get()) }
     viewModel { MockTestViewModel(repository = get()) }
     viewModel { QuizViewModel(repository = get()) }
-    viewModel { ProgressViewModel(progressRepository = get(), mockTestRepository = get()) }
+    viewModel { ProgressViewModel(progressRepository = get(), mockTestRepository = get(), authRepository = get()) }
     viewModel { TutorViewModel(repository = get()) }
     viewModel { SchoolViewModel(repository = get()) }
     viewModel { (userId: String) -> PaymentViewModel(paymentRepository = get(), authRepository = get(), userId = userId) }

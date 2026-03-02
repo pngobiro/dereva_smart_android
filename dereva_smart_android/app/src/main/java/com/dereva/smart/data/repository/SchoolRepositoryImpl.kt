@@ -241,16 +241,68 @@ class SchoolRepositoryImpl(
     }
     
     override suspend fun getSchoolStats(schoolId: String): Result<SchoolStats> = runCatching {
+        val token = authRepository.getAuthState().token ?: throw Exception("Not authenticated")
+        
+        val response = apiService.getSchoolStats(schoolId, "Bearer $token")
+        if (!response.isSuccessful) {
+            throw Exception("Failed to fetch school stats: ${response.message()}")
+        }
+        
+        val dto = response.body() ?: throw Exception("Empty response")
+        
         SchoolStats(
             schoolId = schoolId,
-            totalStudents = 150,
-            averageScore = 85.0,
-            passRate = 90.0,
-            topPerformers = listOf(
-                LeaderboardEntry(rank = 1, userId = "student_1", displayName = "John Doe", averageScore = 95.0, testsCompleted = 10, isCurrentUser = false),
-                LeaderboardEntry(rank = 2, userId = "student_2", displayName = "Jane Smith", averageScore = 92.0, testsCompleted = 8, isCurrentUser = false)
-            )
+            totalStudents = dto.totalStudents,
+            totalAttempts = dto.totalAttempts,
+            averageScore = dto.averageScore.toDouble(),
+            passRate = dto.passRate.toDouble(),
+            topPerformers = dto.topPerformers.mapIndexed { index, performer ->
+                LeaderboardEntry(
+                    rank = index + 1,
+                    userId = performer.id,
+                    displayName = performer.name,
+                    averageScore = performer.avgScore.toDouble(),
+                    testsCompleted = performer.attempts,
+                    isCurrentUser = false
+                )
+            },
+            categoryStats = dto.categoryStats.map { stat ->
+                CategoryStat(
+                    category = stat.category,
+                    attempts = stat.attempts,
+                    avgScore = stat.avgScore.toDouble(),
+                    passRate = stat.passRate.toDouble()
+                )
+            }
         )
+    }
+    
+    override suspend fun getSchoolProgress(schoolId: String, category: String?, limit: Int): Result<List<SchoolProgressRecord>> = runCatching {
+        val token = authRepository.getAuthState().token ?: throw Exception("Not authenticated")
+        
+        val response = apiService.getSchoolProgress(schoolId, limit, category, "Bearer $token")
+        if (!response.isSuccessful) {
+            throw Exception("Failed to fetch school progress: ${response.message()}")
+        }
+        
+        val dto = response.body() ?: throw Exception("Empty response")
+        
+        dto.progress.map { record ->
+            SchoolProgressRecord(
+                id = record.id,
+                userId = record.userId,
+                userName = record.userName,
+                userPhone = record.userPhone,
+                quizName = record.quizName,
+                category = record.category,
+                score = record.score,
+                passed = record.passed,
+                totalQuestions = record.totalQuestions,
+                correctAnswers = record.correctAnswers,
+                timeTaken = record.timeTaken,
+                completedAt = Date(record.completedAt)
+            )
+        }
     }
     
     private suspend fun syncModuleSchedules(schoolId: String) {

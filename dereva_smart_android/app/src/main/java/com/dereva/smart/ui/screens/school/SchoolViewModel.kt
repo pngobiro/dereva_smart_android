@@ -16,6 +16,7 @@ data class SchoolUiState(
     val moduleSchedules: List<ModuleSchedule> = emptyList(),
     val latestReport: ProgressReport? = null,
     val schoolStats: SchoolStats? = null,
+    val schoolProgress: List<SchoolProgressRecord> = emptyList(),
     val leaderboard: List<LeaderboardEntry> = emptyList(),
     val error: String? = null,
     val successMessage: String? = null
@@ -53,9 +54,6 @@ class SchoolViewModel(
                         
                         // Load latest progress report
                         loadProgressReport(it.schoolId)
-                        
-                        // Load school stats
-                        loadSchoolStats(it.schoolId)
                         
                         // Check and unlock modules
                         checkModuleUnlocks(it.schoolId)
@@ -189,12 +187,28 @@ class SchoolViewModel(
             .onFailure { /* ignore */ }
     }
     
-    private suspend fun loadSchoolStats(schoolId: String) {
-        repository.getSchoolStats(schoolId)
-            .onSuccess { stats ->
-                _uiState.value = _uiState.value.copy(schoolStats = stats)
-            }
-            .onFailure { /* ignore */ }
+    fun loadSchoolStats(schoolId: String) {
+        viewModelScope.launch {
+            repository.getSchoolStats(schoolId)
+                .onSuccess { stats ->
+                    _uiState.value = _uiState.value.copy(schoolStats = stats)
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(error = error.message)
+                }
+        }
+    }
+    
+    fun loadSchoolProgress(schoolId: String, category: String? = null) {
+        viewModelScope.launch {
+            repository.getSchoolProgress(schoolId, category)
+                .onSuccess { progress ->
+                    _uiState.value = _uiState.value.copy(schoolProgress = progress)
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(error = error.message)
+                }
+        }
     }
     
     private suspend fun checkModuleUnlocks(schoolId: String) {

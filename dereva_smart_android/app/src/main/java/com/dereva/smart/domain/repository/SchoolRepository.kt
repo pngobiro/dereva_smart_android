@@ -46,4 +46,6 @@ interface SchoolRepository {
     suspend fun getSchoolLeaderboard(schoolId: String, limit: Int = 10): Result<List<LeaderboardEntry>>
     
     suspend fun getSchoolStats(schoolId: String): Result<SchoolStats>
+    
+    suspend fun getSchoolProgress(schoolId: String, category: String? = null, limit: Int = 50): Result<List<SchoolProgressRecord>>
 }

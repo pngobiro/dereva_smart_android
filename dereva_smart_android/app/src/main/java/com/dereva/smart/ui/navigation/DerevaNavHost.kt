@@ -40,6 +40,7 @@ import com.dereva.smart.ui.screens.payment.PaymentScreen
 import com.dereva.smart.ui.screens.payment.PaymentViewModel
 import com.dereva.smart.ui.screens.progress.ProgressScreen
 import com.dereva.smart.ui.screens.school.SchoolScreen
+import com.dereva.smart.ui.screens.school.SchoolProgressScreen
 import com.dereva.smart.ui.screens.simulation.SimulationScreen
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -58,6 +59,9 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile")
     object Help : Screen("help")
     object School : Screen("school")
+    object SchoolProgress : Screen("school_progress/{schoolId}") {
+        fun createRoute(schoolId: String) = "school_progress/$schoolId"
+    }
     object Payment : Screen("payment")
     object ModuleList : Screen("module_list")
     object LessonList : Screen("lesson_list/{moduleId}") {
@@ -229,6 +233,18 @@ fun DerevaNavHost() {
         
         composable(Screen.School.route) {
             SchoolScreen(navController = navController)
+        }
+        
+        composable(
+            route = Screen.SchoolProgress.route,
+            arguments = listOf(navArgument("schoolId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val schoolId = backStackEntry.arguments?.getString("schoolId") ?: ""
+            SchoolProgressScreen(
+                navController = navController,
+                schoolId = schoolId,
+                authViewModel = authViewModel
+            )
         }
         
         composable(Screen.Payment.route) {

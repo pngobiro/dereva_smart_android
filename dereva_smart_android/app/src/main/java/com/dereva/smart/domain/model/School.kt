@@ -68,7 +68,33 @@ data class LeaderboardEntry(
 data class SchoolStats(
     val schoolId: String,
     val totalStudents: Int,
+    val totalAttempts: Int,
     val averageScore: Double,
     val passRate: Double,
-    val topPerformers: List<LeaderboardEntry>
+    val topPerformers: List<LeaderboardEntry>,
+    val categoryStats: List<CategoryStat>
+) : Parcelable
+
+@Parcelize
+data class CategoryStat(
+    val category: String,
+    val attempts: Int,
+    val avgScore: Double,
+    val passRate: Double
+) : Parcelable
+
+@Parcelize
+data class SchoolProgressRecord(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val userPhone: String,
+    val quizName: String,
+    val category: String,
+    val score: Int,
+    val passed: Boolean,
+    val totalQuestions: Int,
+    val correctAnswers: Int,
+    val timeTaken: Int,
+    val completedAt: Date
 ) : Parcelable

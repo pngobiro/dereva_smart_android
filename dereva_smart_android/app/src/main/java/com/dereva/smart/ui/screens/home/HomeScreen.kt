@@ -2,6 +2,8 @@ package com.dereva.smart.ui.screens.home
 
 import android.content.Intent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -112,6 +114,7 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -211,6 +214,54 @@ fun HomeScreen(navController: NavController) {
             
             Spacer(modifier = Modifier.height(32.dp))
             
+            // Help & Support Card - Prominent placement
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { navController.navigate(Screen.Help.route) },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Column {
+                            Text(
+                                text = "Need Help?",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "FAQs, contact us, and useful links",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             // Learning Modules Card
             FeatureCard(
                 title = "Learning Modules",
@@ -250,22 +301,6 @@ fun HomeScreen(navController: NavController) {
                 icon = Icons.Default.ShoppingCart,
                 status = if (currentUser?.isPremium == true) "Active" else "Upgrade",
                 onClick = { navController.navigate(Screen.Payment.route) }
-            )
-            
-            // 3D Simulation Card
-            FeatureCard(
-                title = "3D Driving Simulation",
-                description = "Practice driving in a virtual town",
-                icon = Icons.Default.Place,
-                onClick = { navController.navigate(Screen.Simulation.route) }
-            )
-            
-            // Help & Support Card
-            FeatureCard(
-                title = "Help & Support",
-                description = "FAQs, contact us, and useful links",
-                icon = Icons.Default.Info,
-                onClick = { navController.navigate(Screen.Help.route) }
             )
         }
     }

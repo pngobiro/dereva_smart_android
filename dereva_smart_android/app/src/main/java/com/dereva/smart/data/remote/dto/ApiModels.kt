@@ -303,6 +303,53 @@ data class SchoolResponse(
     val verified: Boolean
 )
 
+data class SchoolStatsDto(
+    val totalStudents: Int,
+    val totalAttempts: Int,
+    val averageScore: Int,
+    val passRate: Int,
+    val topPerformers: List<TopPerformerDto>,
+    val categoryStats: List<CategoryStatDto>
+)
+
+data class TopPerformerDto(
+    val id: String,
+    val name: String,
+    val phoneNumber: String,
+    val avgScore: Int,
+    val attempts: Int,
+    val passedCount: Int
+)
+
+data class CategoryStatDto(
+    val category: String,
+    val attempts: Int,
+    val avgScore: Int,
+    val passed: Int,
+    val passRate: Int
+)
+
+data class SchoolProgressResponse(
+    val progress: List<SchoolProgressRecordDto>
+)
+
+data class SchoolProgressRecordDto(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val userPhone: String,
+    val quizAttemptId: String,
+    val quizBankId: String,
+    val quizName: String,
+    val category: String,
+    val score: Int,
+    val passed: Boolean,
+    val totalQuestions: Int,
+    val correctAnswers: Int,
+    val timeTaken: Int,
+    val completedAt: Long
+)
+
 // AI Tutor
 data class TutorRequest(
     val question: String,
@@ -484,6 +531,9 @@ data class QuizAttemptHistoryDto(
     val id: String,
     @SerializedName("quizBankId")
     val quizBankId: String,
+    @SerializedName("quizTitle")
+    val quizTitle: String?,
+    val category: String?,
     @SerializedName("startedAt")
     val startedAt: Long,
     @SerializedName("completedAt")

@@ -22,4 +22,6 @@ interface ProgressRepository {
     suspend fun getTotalStudyTime(userId: String): Result<Int>
     
     suspend fun getCompletionPercentage(userId: String, totalLessons: Int): Result<Double>
+    
+    suspend fun getUserQuizAttempts(userId: String): Result<List<QuizAttemptRecord>>
 }
