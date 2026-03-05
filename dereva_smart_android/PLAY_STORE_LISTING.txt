@@ -1,0 +1,83 @@
+DEREVA SMART KENYA - PLAY STORE LISTING ASSETS
+
+================================================================================
+APP NAME (18/30 characters)
+================================================================================
+Dereva Smart Kenya
+
+================================================================================
+SHORT DESCRIPTION (78/80 characters)
+================================================================================
+Pass your NTSA driving theory test with AI-powered mock tests and 3D simulations.
+
+================================================================================
+FULL DESCRIPTION (1920/4000 characters)
+================================================================================
+Ace your NTSA driving theory test with Dereva Smart Kenya, the most comprehensive and modern driving school companion in Kenya!
+
+Whether you are a student at a driving school or an independent learner, Dereva Smart Kenya provides all the tools you need to master the New Driving Curriculum and get your license with confidence.
+
+KEY FEATURES:
+
+📚 COMPREHENSIVE NTSA CURRICULUM
+Access detailed learning modules covering all license categories (A, B, C, D, E, G). Study road signs, traffic rules, and vehicle controls through easy-to-understand content.
+
+📝 UNLIMITED MOCK TESTS
+Practice with full-length 50-question mock tests that mirror the actual NTSA theory exam. Get instant results and detailed explanations for every answer to help you improve.
+
+🤖 AI-POWERED DRIVING TUTOR
+Stuck on a specific rule? Ask our built-in AI tutor! Get personalized explanations and study tips available 24/7 to support your learning journey.
+
+🚗 3D TOWN SIMULATIONS
+Experience interactive 3D simulations of the Model Town Board and parking maneuvers. Master the rules of the road visually before you even get behind the wheel.
+
+🏢 SCHOOL SYNC
+Link with your registered driving school to sync your progress. Share your mock test results directly with your instructors for a more coordinated learning experience.
+
+📈 PROGRESS TRACKING
+Monitor your performance over time. See which categories you’ve mastered and where you need more practice with our intuitive progress dashboard.
+
+💳 SECURE UPGRADES
+Unlock premium features, including advanced 3D simulations and expanded mock test banks, via secure and integrated M-Pesa payments.
+
+WHY CHOOSE DEREVA SMART KENYA?
+• Specifically tailored for the Kenyan NTSA Driving Curriculum.
+• Interactive and visual learning tools for better retention.
+• Practice anytime, anywhere – even in Guest Mode.
+• Dedicated support via WhatsApp and email.
+
+Start your journey to becoming a safe and licensed driver today. Download Dereva Smart Kenya and get on the road to success!
+
+================================================================================
+DISCLAIMER (Important for Policy Compliance)
+================================================================================
+Dereva Smart Kenya is an independent study tool and is not affiliated with, endorsed by, or an official application of the National Transport and Safety Authority (NTSA) or any government agency. All practice materials are for educational purposes only.
+
+================================================================================
+RELEASE NOTES (en-US)
+================================================================================
+Initial release of Dereva Smart Kenya!
+- Comprehensive NTSA driving theory test preparation for all categories.
+- Interactive learning modules for road signs, traffic rules, and vehicle basics.
+- Full-length 50-question mock tests to help you ace your exam.
+- AI-powered tutor for personalized learning and instant support.
+- Progress tracking to monitor your study journey and performance.
+- Secure M-Pesa integration for easy premium feature upgrades.
+- School Sync to link and share progress with your driving school.
+
+================================================================================
+APP ACCESS INSTRUCTIONS (FOR GOOGLE REVIEWERS)
+================================================================================
+Instruction name: Reviewer Access - Premium Test Account
+Username: 0700000000
+Password: Reviewer123!
+
+Notes for Reviewer:
+The app typically uses phone number authentication and requires an SMS OTP verification code for new user registrations. 
+
+To facilitate the review without needing a Kenyan SIM card, please use the provided test account (0700000000) which is already registered and verified.
+
+Important for Premium Feature Review:
+The provided test account (0700000000) has been pre-configured with an active "Premium" subscription status in our backend database. This allows the reviewer to bypass the M-Pesa payment gateway and directly access restricted features such as full Mock Tests and 3D simulation modules.
+
+There is also a "Guest Mode" accessible from the landing page, which allows basic browsing without an account.

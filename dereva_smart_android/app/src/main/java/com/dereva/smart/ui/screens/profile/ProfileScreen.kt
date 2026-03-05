@@ -222,7 +222,7 @@ fun ProfileScreen(
                         IconButton(
                             onClick = {
                                 val referralCode = currentUser?.id?.take(8)?.uppercase() ?: "DEREVA"
-                                val shareText = "Join me on Dereva Smart and ace your NTSA driving test! Use my referral code: $referralCode\n\nDownload: https://play.google.com/store/apps/details?id=com.dereva.smart"
+                                val shareText = "Join me on Dereva Smart Kenya and ace your NTSA driving test! Use my referral code: $referralCode\n\nDownload: https://play.google.com/store/apps/details?id=com.dereva.smart"
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     putExtra(Intent.EXTRA_TEXT, shareText)

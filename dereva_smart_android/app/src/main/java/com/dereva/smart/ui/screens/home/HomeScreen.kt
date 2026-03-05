@@ -21,6 +21,9 @@ import com.dereva.smart.ui.navigation.Screen
 import com.dereva.smart.ui.screens.auth.AuthViewModel
 import org.koin.androidx.compose.koinViewModel
 
+import androidx.compose.ui.res.stringResource
+import com.dereva.smart.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -34,7 +37,7 @@ fun HomeScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Dereva Smart")
+                        Text("Dereva Smart Kenya")
                         if (currentUser != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -65,7 +68,7 @@ fun HomeScreen(navController: NavController) {
                     // Share App Button
                     IconButton(onClick = {
                         val referralCode = currentUser?.id?.take(8)?.uppercase() ?: "DEREVA"
-                        val shareText = "Join me on Dereva Smart and ace your NTSA driving test! Use my referral code: $referralCode\n\nDownload: https://play.google.com/store/apps/details?id=com.dereva.smart"
+                        val shareText = "Join me on Dereva Smart Kenya and ace your NTSA driving test! Use my referral code: $referralCode\n\nDownload: https://play.google.com/store/apps/details?id=com.dereva.smart"
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
                             putExtra(Intent.EXTRA_TEXT, shareText)
@@ -200,7 +203,7 @@ fun HomeScreen(navController: NavController) {
             }
             
             Text(
-                text = "NTSA Driving Theory Test",
+                text = "Driving Theory Test Preparation",
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
@@ -301,6 +304,17 @@ fun HomeScreen(navController: NavController) {
                 icon = Icons.Default.ShoppingCart,
                 status = if (currentUser?.isPremium == true) "Active" else "Upgrade",
                 onClick = { navController.navigate(Screen.Payment.route) }
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // App Disclaimer
+            Text(
+                text = stringResource(R.string.app_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = 16.dp)
             )
         }
     }

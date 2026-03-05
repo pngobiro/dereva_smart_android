@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.dereva.smart.domain.model.DrivingSchool
 import com.dereva.smart.domain.model.LicenseCategory
 
+import androidx.compose.ui.res.stringResource
+import com.dereva.smart.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
@@ -88,7 +91,7 @@ fun RegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Join Dereva Smart",
+                text = "Join Dereva Smart Kenya",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -372,6 +375,17 @@ fun RegisterScreen(
                     }
                 }
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // App Disclaimer
+            Text(
+                text = stringResource(R.string.app_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
     }
     

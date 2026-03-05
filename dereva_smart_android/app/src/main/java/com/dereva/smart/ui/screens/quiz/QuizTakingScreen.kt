@@ -381,7 +381,22 @@ fun QuestionView(
         // Educational context — shown at the bottom after answer options
         question.context?.let { ctx ->
             Spacer(Modifier.height(16.dp))
-            RenderContent(ctx)
+            var showContext by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            androidx.compose.material3.TextButton(
+                onClick = { showContext = !showContext },
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.height(24.dp)
+            ) {
+                Text(
+                    text = if (showContext) "Hide Explanation ▲" else "Show Explanation ▼",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (showContext) {
+                Spacer(Modifier.height(8.dp))
+                RenderContent(ctx)
+            }
         }
     }
 }
@@ -485,6 +500,7 @@ fun MediaContent(media: QuizMedia) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 300.dp),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Inside,
                         error = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
                         placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery)
                     )
@@ -831,7 +847,7 @@ fun QuizResultDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = if (showDetails) "Hide Explanations ▲" else "Show Explanations ▼",
+                        text = if (showDetails) "Hide Question Review ▲" else "Review Questions ▼",
                         style = MaterialTheme.typography.titleSmall
                     )
                 }
@@ -870,6 +886,8 @@ fun QuestionFeedbackCard(
     feedback: QuizFeedback,
     questionText: String?
 ) {
+    var showExplanation by remember { androidx.compose.runtime.mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -922,17 +940,33 @@ fun QuestionFeedbackCard(
 
             if (feedback.explanation.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.Top) {
+                
+                androidx.compose.material3.TextButton(
+                    onClick = { showExplanation = !showExplanation },
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(24.dp)
+                ) {
                     Text(
-                        text = "💡 ",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (showExplanation) "Hide Explanation ▲" else "Show Explanation ▼",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    Text(
-                        text = feedback.explanation,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                }
+
+                if (showExplanation) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            text = "💡 ",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = feedback.explanation,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

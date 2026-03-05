@@ -20,6 +20,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.ui.res.stringResource
+import com.dereva.smart.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
@@ -63,14 +66,14 @@ fun LoginScreen(
         ) {
             // Logo/Title
             Text(
-                text = "Dereva Smart",
+                text = "Dereva Smart Kenya",
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
             
             Text(
-                text = "NTSA Driving Theory Test",
+                text = "Driving Theory Test",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -211,6 +214,17 @@ fun LoginScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // App Disclaimer
+            Text(
+                text = stringResource(R.string.app_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 24.dp)
+            )
         }
     }
     

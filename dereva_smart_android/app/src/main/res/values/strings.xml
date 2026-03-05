@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Dereva Smart</string>
+    <string name="app_name">Dereva Smart Kenya</string>
+    <string name="app_disclaimer">Disclaimer: Dereva Smart Kenya is an independent study tool and is not affiliated with, endorsed by, or an official application of the National Transport and Safety Authority (NTSA) or any government agency. All practice materials are for educational purposes only.</string>
 </resources>
