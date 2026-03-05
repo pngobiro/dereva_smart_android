@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../dereva_smart_backend_cloudflare"
+		}
+	],
+	"settings": {
+		"html.autoClosingTags": false,
+		"typescript.autoClosingTags": false
+	}
+}

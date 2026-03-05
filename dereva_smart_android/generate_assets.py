@@ -59,13 +59,24 @@ def generate_image(prompt, aspect_ratio, output_filename, resize_dimensions=None
         print(f"Error generating {output_filename}: {e}")
 
 if __name__ == "__main__":
-    # App Icon (512x512)
+    # App Icon (512x512) - For Play Store
     generate_image(
-        prompt="A modern, minimalist, flat vector logo for a driving school app in Kenya. It features a stylized steering wheel and an open road with the colors of the Kenyan flag (black, red, green, white). The text 'Dereva Smart Kenya' should be clearly integrated into the design. Clean, flat design, white background. Professional, high quality.",
+        prompt="A premium, modern app icon for a driving school app. The design features the initials 'DSK' (for Dereva Smart Kenya) in a bold, sleek, and high-tech font. The letters are creatively integrated with a minimalist steering wheel or an abstract winding road. Vibrant professional colors (vivid green, charcoal black, and a touch of red). Smooth 3D glassmorphism or clean flat vector style. High contrast, clean white background, professional and high-quality aesthetic.",
         aspect_ratio="1:1",
         output_filename="app_icon_512.png",
         resize_dimensions=(512, 512)
     )
+
+    # Launcher Foreground (512x512) - Transparent background
+    generate_image(
+        prompt="A high-quality, professional logo of the initials 'DSK' (Dereva Smart Kenya) integrated with a minimalist steering wheel. Bold, modern font. Vibrant green and charcoal black colors. TRANSPARENT BACKGROUND, no shadows, no background container. Centered and balanced. This will be used as a mobile app launcher foreground.",
+        aspect_ratio="1:1",
+        output_filename="ic_launcher_foreground_source.png",
+        resize_dimensions=(512, 512)
+    )
+
+    # Disable other generations to save time
+    '''
 
     # Feature Graphic (1024x500)
     generate_image(
@@ -119,3 +130,4 @@ if __name__ == "__main__":
             output_filename=filename,
             resize_dimensions=(1600, 2560)
         )
+    '''
